@@ -1,0 +1,92 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                              %
+%            A Painless Introduction to Programming UAMMD Modules              %
+%                                                                              %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[a4paper,12pt,openany,hidelinks]{book}
+
+\usepackage{graphicx}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{afterpage}
+\usepackage{comment}
+\usepackage{listings}
+\lstset{morecomment = [is]{\%!}{\^^M}}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks,
+%    linkcolor={blue!50!black},
+%    citecolor={red!50!black},
+%    urlcolor={blue!80!black},
+    pdftitle={A Painless Introduction to Programming UAMMD Modules},
+    pdfauthor={M. Melendez},
+    pdfsubject={UAMMD programming},
+    pdfkeywords={molecular simulation, fluctuating hydrodynamics, UAMMD},
+    pdfdisplaydoctitle
+}
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  Head  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% Title page %%%
+
+\title{A Painless Introduction to Programming UAMMD Modules}
+\date{\today}
+\author{Marc Mel\'endez Schofield}
+
+\maketitle
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  Copyright notice  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\thispagestyle{empty}
+
+
+\noindent \textit{Title:} A Painless Introduction to Programming UAMMD Modules
+
+\noindent \textit{Author:} Marc Mel\'endez Schofield. \\[1.2cm]
+
+\vfill
+
+\hrule
+
+\vspace{2.0mm}
+
+\noindent \includegraphics[height=0.75cm,clip=true]{figures/{by-nc-sa}.eps}
+{\small Marc Mel\'endez Schofield (2020).} \\
+
+{\small \noindent \textcopyright\ 2020,
+Marc Mel\'endez Schofield. \textit{A Painless Introduction to Programming UAMMD
+Modules} is distributed under the Creative Commons
+Attribution-NonCommercial-ShareAlike 4.0 International
+(\textsc{cc-by-nc-sa} 4.0). For summary and legal details visit: \\
+\url{https://creativecommons.org/licenses/by-nc-sa/4.0/}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  Body  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\tableofcontents
+
+\chapter*{Introduction}
+
+\input{chapters/introduction.tex}
+
+\chapter{Our first numerical simulation}
+
+\input{chapters/first_simulation.tex}
+
+\end{document}
+
+%! codefile: Makefile
+all: tangle weave
+
+tangle:
+	txt2tangle uammd_intro.tex
+
+weave:
+	latex uammd_intro.tex
+	dvips uammd_intro.dvi
+	ps2pdf uammd_intro.ps
+%! codeend

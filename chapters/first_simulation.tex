@@ -1,0 +1,65 @@
+Let us take the first step of our journey towards high-performance computing on
+GPUs with a low-performance simple program that does hardly no computing. We
+will modify a typical ``Hello, World!'' program in C++ slightly by adding a few
+more lines (marked below with the comment \texttt{/* UAMMD */}).
+\begin{lstlisting}[frame=single]
+%! codefile: ../code/minimal.cu
+# include "uammd.cuh" /* UAMMD */
+
+using namespace uammd; /* UAMMD */
+using std::make_shared;
+using std::endl;
+using std::cout;
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc,argv);/* UAMMD */
+
+  cout<<endl<<"--> Hello, UAMMD! <--"<<endl<<endl;
+
+  sys->finish(); /* UAMMD */
+
+  return 0;
+}
+%! codeend
+\end{lstlisting}
+Compile the code with
+\begin{verbatim}
+nvcc -O3 -I../uammd/src -I../uammd/src/third_party -o minimal
+minimal.cu
+\end{verbatim}
+making sure that you replace the paths to UAMMD src code with the right path on
+your system. Running \textit{./minimal} outputs some UAMMD information, with
+your ``Hello, UAMMD!'' message in the middle. Take out all the lines marked
+\texttt{/* UAMMD */} and you are left with a typical ``Hello, World!'' program
+in C++ that only outputs your message.
+
+It might be helpful to go through the program to explain what each UAMMD line 
+does in very general terms. You \texttt{include} the \texttt{uammd.cuh} header 
+file and use the \texttt{uammd} namespace to have access to the functionality 
+defined in the UAMMD source code. Within the main function, we enclose all our 
+UAMMD code between the creation of a \texttt{System} and its destruction. The
+\texttt{System} represents the computing environment in UAMMD. It deals with
+access to the GPU and random number generation on the CPU, for example. In the
+example above, we created a \texttt{System} named \texttt{sys} with
+\begin{verbatim}
+auto sys = make_shared<System>(argc,argv);
+\end{verbatim}
+and destroyed it at the end of the program with \texttt{sys->finish();}.
+
+The program compiles and runs, but it feels like an empty sandwich. By expanding
+it slightly, though, we can run a simple simulation.
+
+\section{The physical system}
+
+The main sandwich filling in our virtual kitchen has to be the physical system
+that we wish to simulate, represented as a collection of particles.
+
+Free expansion of a gas
+
+\section{The simulation box}
+
+\section{Interactions}
+
+\section{Integrators}
+
