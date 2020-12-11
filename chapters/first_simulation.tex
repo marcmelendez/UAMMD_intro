@@ -1,9 +1,12 @@
 Let us take the first step of our journey towards high-performance computing on
 GPUs with a low-performance simple program that does hardly no computing. We
 will modify a typical ``Hello, World!'' program in C++ slightly by adding a few
-more lines (marked below with the comment \texttt{/* UAMMD */}).
+more lines (marked below with the comment \texttt{/* UAMMD */}). Note that we
+also included the \texttt{using std::make\_shared} line so that we can later
+declare \texttt{System} as a shared pointer (if you do not know what this means,
+it doesn't matter right now).
 \begin{lstlisting}[frame=single]
-%! codefile: ../code/minimal.cu
+%! codefile: code/minimal.cu
 # include "uammd.cuh" /* UAMMD */
 
 using namespace uammd; /* UAMMD */
@@ -13,7 +16,7 @@ using std::cout;
 
 int main(int argc, char *argv[]){
 
-  auto sys = make_shared<System>(argc,argv);/* UAMMD */
+  auto sys = make_shared<System>(argc,argv); /* UAMMD */
 
   cout<<endl<<"--> Hello, UAMMD! <--"<<endl<<endl;
 
@@ -29,7 +32,7 @@ nvcc -O3 -I../uammd/src -I../uammd/src/third_party -o minimal
 minimal.cu
 \end{verbatim}
 making sure that you replace the paths to UAMMD src code with the right path on
-your system. Running \textit{./minimal} outputs some UAMMD information, with
+your system. Running \texttt{./minimal} outputs some UAMMD information, with
 your ``Hello, UAMMD!'' message in the middle. Take out all the lines marked
 \texttt{/* UAMMD */} and you are left with a typical ``Hello, World!'' program
 in C++ that only outputs your message.
@@ -50,16 +53,198 @@ and destroyed it at the end of the program with \texttt{sys->finish();}.
 The program compiles and runs, but it feels like an empty sandwich. By expanding
 it slightly, though, we can run a simple simulation.
 
-\section{The physical system}
+\section{\label{physical_system}The physical system}
 
 The main sandwich filling in our virtual kitchen has to be the physical system
-that we wish to simulate, represented as a collection of particles.
+that we wish to simulate, represented as a collection of particles. Define them
+with the following lines after declaring \texttt{sys}.
+\begin{lstlisting}[frame=single]
+%! codeblock: particleData
+  int numberOfParticles = 100000;
+  auto particles
+    = make_shared<ParticleData>(numberOfParticles, sys);
+%! codeblockend
+\end{lstlisting}
+From now on, we have access to all the properties of our particles. We might, 
+for example, decide to distribute the particles randomly within an imaginary 
+128-unit box. The following code block, set apart by brackets defines
+\texttt{L} and \texttt{position} as local variables, meaning that they cannot
+be accessed from other parts of the code. Let it replace the ``Hello, UAMMD!''
+line above.
+\begin{lstlisting}[frame=single]
+%! codeblock: initialConditions
+  {
+    real L = 128;
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
 
-Free expansion of a gas
+    for(int i = 0; i < numberOfParticles; ++i)
+      position[i]
+        = make_real4(sys->rng().uniform3(-0.5, 0.5), 0)*L;
+  }
+%! codeblockend
+\end{lstlisting}
+In the \texttt{for} loop we go over the list of positions and assign to each of
+them a random four-dimensional vector. The first three components are random
+numbers chosen from a uniform distribution between $-0.5$ and $0.5$ the last one
+is zero. Because we then multiply the vector by \texttt{L}, we finally get
+coordinates in the $-\frac{L}{2}$ to $\frac{L}{2}$ range. \texttt{L} was defined
+as a \texttt{real} value. Depending on the options at compilation, this means
+either a floating point or a double precision number. The final number in the
+four-vector represents the particle type (here set to zero).
 
-\section{The simulation box}
+Suppose that, instead of writing to the particle positions, we wished to read
+the velocities. The code snippet would resemble the box above, but we would call
+\texttt{getVel} instead of \texttt{getPos} and indicate that we wish to read the
+values.
+\begin{lstlisting}[frame=single]
+    auto velocities
+      = particles->getVel(access::location::cpu,
+                          access::mode::write);
+\end{lstlisting}
+Other particle properties work similarly: use \texttt{getMass},
+\texttt{getRadius}, \texttt{getCharge}, \texttt{getForce} or \texttt{getEnergy}.
 
-\section{Interactions}
+Each particle is born with a name or identification number, which you may think
+of as a serial number, accessible with the \texttt{getId} method. The reason why
+you should care about this name concerns UAMMD reshuffling all the particles
+every once in a while for efficiency. If you wish to track the trajectory of the
+particle pointed at by \texttt{positions[3]}, you must remember that later on in
+the code, when you get the positions with \texttt{getPos}, \texttt{positions[3]}
+might be pointing at the location of a different particle.
+
+Generally speaking, you will want to traverse the particle data in the order
+provided by these \texttt{getWhatever} functions when you want to perform an
+operation on all the particles, but don't care about the order, like when you
+calculate the force on each particle. If you wish to track trajectories, for
+example, then you need to identify the particles by name. So, if you would
+like to print out the positions in the same order every time, use this:
+\begin{lstlisting}[frame=single]
+%! codeblock: printPositions
+      auto position
+        = particles->getPos(access::location::cpu,
+                            access::mode::read);
+      const int * index = particles->getIdOrderedIndices(access::location::cpu);
+
+      out<<endl;
+      for(int id = 0; id < numberOfParticles; ++id)
+        out<<position[index[id]]<<endl;
+%! codeblockend
+\end{lstlisting}
+After getting the positions, you get a list of the indices ordered by name. Say
+that you are searching for a particle with \texttt{id = 3}. Then
+\texttt{index[id]} would tell you where it lies in the particle list, and
+\texttt{position[index[id]]} would give you its position in space (and its type
+as the fourth component of the position vector).
 
 \section{Integrators}
 
+The next ingredients adding flavour to our sandwich are time and motion. To get
+the particles to move, we have to integrate their equations of motion
+numerically. Now, we keep the new feature as simple as possible by assuming that
+the particles do not interact, and treat them as atoms in an ideal gas.
+
+We need some more functionality, which we import into our project with
+\begin{lstlisting}[frame=single]
+# include "Integrator/VerletNVE.cuh"
+\end{lstlisting}
+at the beginning of the file, after including the \texttt{uammd.cuh} header
+file. Now we can use the popular Verlet scheme to integrate the equations of
+motion, but we need to set the values of some parameters first. \texttt{dt} sets
+the size of the integration time step.
+\begin{lstlisting}[frame=single]
+%! codeblock: VerletParams
+  using Verlet = VerletNVE::VerletNVE;
+  Verlet::Parameters VerletParams;
+  VerletParams.dt = 0.01;
+  VerletParams.initVelocities=true;
+  VerletParams.energy = 1.0;
+%! codeblockend
+\end{lstlisting}
+In addition, we use the algorithm to initialise the velocities to random values
+in such a way that the energy per particle equals \texttt{1.0}. Having set the
+parameters, we activate the integrator with the following line.
+\begin{lstlisting}[frame=single]
+%! codeblock: Verlet
+  auto integrator
+    = make_shared<Verlet>(particles, sys, VerletParams);
+%! codeblockend
+\end{lstlisting}
+
+Leaving their initial random positions, we allow the atoms to drift away. The 
+program, we decide, will write the positions to \texttt{free\_expansion.dat}.
+\begin{lstlisting}[frame=single]
+%! codeblock: outputFile
+  std::string outputFile = "free_expansion.dat";
+  std::ofstream out(outputFile);
+
+  int numberOfSteps = 1000;
+  int printEverynSteps = 100;
+%! codeblockend
+\end{lstlisting}
+Although we will tell the computer to calculate one thousand time steps, we
+will only record the state of the system once every one hundred steps. 
+
+To advance the system in time, use the integrator's \texttt{forwardTime} method.
+\begin{lstlisting}[frame=single]
+%! codeblock: integration
+  for(int step = 0; step < numberOfSteps; ++step) {
+    integrator->forwardTime();
+
+    if(printEverynSteps > 0
+       && step % printEverynSteps == 1) {
+      /* ... Output particle positions ... */
+      %! codeinsert: printPositions
+    }
+  }
+%! codeblockend
+\end{lstlisting}
+You can easily replace the comment above with the output code explained at the
+end of section \ref{physical_system}.
+
+\begin{comment}
+\begin{lstlisting}[frame=single]
+%! codefile: code/free_expansion.cu
+# include "uammd.cuh"
+# include "Integrator/VerletNVE.cuh"
+
+using namespace uammd;
+using std::make_shared;
+using std::endl;
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  %! codeinsert: particleData
+
+  %! codeinsert: initialConditions
+
+  %! codeinsert: VerletParams
+
+  %! codeinsert: Verlet
+
+  %! codeinsert: outputFile
+
+  %! codeinsert: integration
+
+  sys->finish();
+
+  return 0;
+}
+%! codeend
+\end{lstlisting}
+\end{comment}
+
+We should now have a working, admittedly unexciting, simulation. It represents
+the free expansion of an ideal gas, initially confined to a box that for some
+reason disappeared magically at the start of the simulation. It makes for an
+unlikely candidate to represent a physical situation of real interest.
+
+\section{The simulation box}
+
+
+\section{Interactions}
+
+The final ingredient
