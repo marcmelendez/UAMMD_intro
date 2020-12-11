@@ -13,7 +13,11 @@
 \usepackage{afterpage}
 \usepackage{comment}
 \usepackage{listings}
-\lstset{morecomment = [is]{\%!}{\^^M}}
+\lstset{morecomment = [is]{\%!}{\^^M},
+        basicstyle = \small,
+        breaklines=true,
+        postbreak=\mbox{$\hookrightarrow$\ }
+        }
 \usepackage{hyperref}
 \hypersetup{
     colorlinks,
@@ -84,6 +88,7 @@ all: tangle weave
 
 tangle:
 	txt2tangle uammd_intro.tex
+	for file in `ls chapters/*.tex`; do txt2tangle $$file; done
 
 weave:
 	latex uammd_intro.tex

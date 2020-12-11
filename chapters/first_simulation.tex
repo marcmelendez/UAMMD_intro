@@ -242,8 +242,19 @@ the free expansion of an ideal gas, initially confined to a box that for some
 reason disappeared magically at the start of the simulation. It makes for an
 unlikely candidate to represent a physical situation of real interest.
 
+Before we incorporate further improvements in our code, we must mention that 
+UAMMD has other integration schemes implemented as well as Monte Carlo methods, 
+and we will turn to some of them later on in this book. For readers already 
+familiar with numerical simulation methods, here is a teaser list: Verlet-like 
+NVT, Brownian dynamics (with and without hydrodynamic interactions), Force 
+Coupling Method, and Lattice Boltzmann.
+
 \section{The simulation box}
 
+Instead of simulating an ideal gas in a room in which the walls have vanished 
+suddenly, we might like to simulate the bulk behaviour of an ideal gas. A 
+customary and convenient molecular dynamics technique involves imposing periodic 
+boundary conditions on the system.
 
 \section{Interactions}
 
