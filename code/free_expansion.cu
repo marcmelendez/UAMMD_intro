@@ -13,8 +13,14 @@ int main(int argc, char *argv[]){
   auto particles
     = make_shared<ParticleData>(numberOfParticles, sys);
 
+  real L = 128;
+    Box box(make_real3(L, L, L));
+    bool periodicityX = true, periodicityY = true,
+         periodicityZ = false;
+    box.setPeriodicity(periodicityX, periodicityY,
+                       periodicityZ);
+
   {
-    real L = 128;
     auto position
       = particles->getPos(access::location::cpu,
                           access::mode::write);
@@ -52,7 +58,7 @@ int main(int argc, char *argv[]){
 
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
-        out<<position[index[id]]<<endl;
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
     }
   }
 

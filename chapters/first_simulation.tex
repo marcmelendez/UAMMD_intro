@@ -5,7 +5,7 @@ more lines (marked below with the comment \texttt{/* UAMMD */}). Note that we
 also included the \texttt{using std::make\_shared} line so that we can later
 declare \texttt{System} as a shared pointer (if you do not know what this means,
 it doesn't matter right now).
-\begin{lstlisting}[frame=single]
+\begin{lstlisting}
 %! codefile: code/minimal.cu
 # include "uammd.cuh" /* UAMMD */
 
@@ -58,7 +58,7 @@ it slightly, though, we can run a simple simulation.
 The main sandwich filling in our virtual kitchen has to be the physical system
 that we wish to simulate, represented as a collection of particles. Define them
 with the following lines after declaring \texttt{sys}.
-\begin{lstlisting}[frame=single]
+\begin{lstlisting}
 %! codeblock: particleData
   int numberOfParticles = 100000;
   auto particles
@@ -67,14 +67,16 @@ with the following lines after declaring \texttt{sys}.
 \end{lstlisting}
 From now on, we have access to all the properties of our particles. We might, 
 for example, decide to distribute the particles randomly within an imaginary 
-128-unit box. The following code block, set apart by brackets defines
-\texttt{L} and \texttt{position} as local variables, meaning that they cannot
-be accessed from other parts of the code. Let it replace the ``Hello, UAMMD!''
-line above.
-\begin{lstlisting}[frame=single]
+128-unit box. In the following snippet, a code block set apart by brackets
+defines \texttt{position} as a local variable, meaning that it cannot be
+accessed from  other parts of the code, in contrast to \texttt{L}. Let it
+replace the ``Hello, UAMMD!'' line above.\label{initialConditions}
+\begin{lstlisting}
 %! codeblock: initialConditions
+  real L = 128;
+  %! codeinsert: simulationBox
+
   {
-    real L = 128;
     auto position
       = particles->getPos(access::location::cpu,
                           access::mode::write);
@@ -94,14 +96,19 @@ as a \texttt{real} value. Depending on the options at compilation, this means
 either a floating point or a double precision number. The final number in the
 four-vector represents the particle type (here set to zero).
 
+Making the position variable local guarantees that we will not read it later on,
+thinking that we have access to the positions, but without having received the
+updated values.
+
 Suppose that, instead of writing to the particle positions, we wished to read
 the velocities. The code snippet would resemble the box above, but we would call
 \texttt{getVel} instead of \texttt{getPos} and indicate that we wish to read the
 values.
-\begin{lstlisting}[frame=single]
+\begin{lstlisting}
     auto velocities
       = particles->getVel(access::location::cpu,
                           access::mode::write);
+%!
 \end{lstlisting}
 Other particle properties work similarly: use \texttt{getMass},
 \texttt{getRadius}, \texttt{getCharge}, \texttt{getForce} or \texttt{getEnergy}.
@@ -120,8 +127,8 @@ operation on all the particles, but don't care about the order, like when you
 calculate the force on each particle. If you wish to track trajectories, for
 example, then you need to identify the particles by name. So, if you would
 like to print out the positions in the same order every time, use this:
-\begin{lstlisting}[frame=single]
-%! codeblock: printPositions
+\label{particlePositions}
+\begin{lstlisting}
       auto position
         = particles->getPos(access::location::cpu,
                             access::mode::read);
@@ -130,7 +137,7 @@ like to print out the positions in the same order every time, use this:
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
         out<<position[index[id]]<<endl;
-%! codeblockend
+%!
 \end{lstlisting}
 After getting the positions, you get a list of the indices ordered by name. Say
 that you are searching for a particle with \texttt{id = 3}. Then
@@ -146,14 +153,15 @@ numerically. Now, we keep the new feature as simple as possible by assuming that
 the particles do not interact, and treat them as atoms in an ideal gas.
 
 We need some more functionality, which we import into our project with
-\begin{lstlisting}[frame=single]
+\begin{lstlisting}
 # include "Integrator/VerletNVE.cuh"
+%!
 \end{lstlisting}
 at the beginning of the file, after including the \texttt{uammd.cuh} header
 file. Now we can use the popular Verlet scheme to integrate the equations of
 motion, but we need to set the values of some parameters first. \texttt{dt} sets
 the size of the integration time step.
-\begin{lstlisting}[frame=single]
+\begin{lstlisting}
 %! codeblock: VerletParams
   using Verlet = VerletNVE::VerletNVE;
   Verlet::Parameters VerletParams;
@@ -165,7 +173,7 @@ the size of the integration time step.
 In addition, we use the algorithm to initialise the velocities to random values
 in such a way that the energy per particle equals \texttt{1.0}. Having set the
 parameters, we activate the integrator with the following line.
-\begin{lstlisting}[frame=single]
+\begin{lstlisting}
 %! codeblock: Verlet
   auto integrator
     = make_shared<Verlet>(particles, sys, VerletParams);
@@ -174,7 +182,7 @@ parameters, we activate the integrator with the following line.
 
 Leaving their initial random positions, we allow the atoms to drift away. The 
 program, we decide, will write the positions to \texttt{free\_expansion.dat}.
-\begin{lstlisting}[frame=single]
+\begin{lstlisting}
 %! codeblock: outputFile
   std::string outputFile = "free_expansion.dat";
   std::ofstream out(outputFile);
@@ -187,7 +195,7 @@ Although we will tell the computer to calculate one thousand time steps, we
 will only record the state of the system once every one hundred steps. 
 
 To advance the system in time, use the integrator's \texttt{forwardTime} method.
-\begin{lstlisting}[frame=single]
+\begin{lstlisting}
 %! codeblock: integration
   for(int step = 0; step < numberOfSteps; ++step) {
     integrator->forwardTime();
@@ -201,10 +209,10 @@ To advance the system in time, use the integrator's \texttt{forwardTime} method.
 %! codeblockend
 \end{lstlisting}
 You can easily replace the comment above with the output code explained at the
-end of section \ref{physical_system}.
+end of section \ref{physical_system} (page \pageref{particlePositions}).
 
 \begin{comment}
-\begin{lstlisting}[frame=single]
+\begin{lstlisting}
 %! codefile: code/free_expansion.cu
 # include "uammd.cuh"
 # include "Integrator/VerletNVE.cuh"
@@ -237,25 +245,141 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
-We should now have a working, admittedly unexciting, simulation. It represents
-the free expansion of an ideal gas, initially confined to a box that for some
-reason disappeared magically at the start of the simulation. It makes for an
-unlikely candidate to represent a physical situation of real interest.
-
-Before we incorporate further improvements in our code, we must mention that 
-UAMMD has other integration schemes implemented as well as Monte Carlo methods, 
-and we will turn to some of them later on in this book. For readers already 
-familiar with numerical simulation methods, here is a teaser list: Verlet-like 
-NVT, Brownian dynamics (with and without hydrodynamic interactions), Force 
-Coupling Method, and Lattice Boltzmann.
+We should now have a working, admittedly unexciting, simulation. It represents 
+the free expansion of an ideal gas, initially confined to a box that for some 
+reason disappeared magically at the start of the simulation. It makes for an 
+unlikely candidate to represent a physical situation of real interest, but we 
+can make it better. However, before we incorporate further improvements in our 
+code, we must mention that UAMMD has other integration schemes implemented as 
+well as Monte Carlo methods, and we will turn to some of them later on in this 
+book. For readers already familiar with numerical simulation methods, here is a 
+teaser list: Verlet-like NVT, Brownian dynamics (with and without hydrodynamic 
+interactions), Force Coupling Method and Lattice Boltzmann.
 
 \section{The simulation box}
 
-Instead of simulating an ideal gas in a room in which the walls have vanished 
-suddenly, we might like to simulate the bulk behaviour of an ideal gas. A 
-customary and convenient molecular dynamics technique involves imposing periodic 
-boundary conditions on the system.
+Instead of simulating an ideal gas in a tiny room in which the walls have 
+vanished suddenly, we might like to produce the bulk behaviour of an ideal gas. 
+A customary and convenient molecular dynamics technique imposes periodic 
+boundary conditions on the system. Suppose our little gas-filled box without 
+walls represents only a small amount of gas lost in the midst of a huge 
+container. How do we simulate the trillions upon trillions of gas particles that 
+surround the small volume that we picked? Easy. We divide space up into 
+imaginary boxes, one of which contains our system, and assume that all the other 
+systems in other boxes behave similarly. In fact, we treat them all as 
+identical.
+
+In such a periodic system, the simulation box has no physical meaning apart from 
+indicating the periodicity in different directions of space. Nothing special 
+happens at the walls, and moving the box or the system as a whole has no effect 
+on the physics. Particles may leave the simulation box and wonder into 
+neighbouring boxes without feeling anything. Due to periodicity, of course, if a 
+particle leaves through the left wall of the box, say, then an identical 
+particle will simultaneously enter through the right wall.
+
+You'll remember that we set up our system by spreading the particles out in a
+cube of side \texttt{L}. Fill space with periodic images of this box with the
+following code snippet after the ``\texttt{real L}'' declaration (see page
+\pageref{initialConditions}).
+\begin{lstlisting}
+    Box box(make_real3(L, L, L));
+    bool periodicityX = true, periodicityY = true,
+         periodicityZ = true;
+    box.setPeriodicity(periodicityX, periodicityY,
+                       periodicityZ);
+%!
+\end{lstlisting}
+The coordinates that your program should output really depend on your interests. 
+Do you wish to follow the motion of the particles that started off in the 
+simulation box, even if they have wondered off? Then print out the positions, as 
+on page \pageref{particlePositions}. Do you, instead, prefer to concentrate on 
+the contents of the simulation box? Then print out the positions of the images 
+that lie within that box with
+\begin{lstlisting}
+  out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
+%!
+\end{lstlisting}
+\begin{comment}
+\begin{lstlisting}
+%! codeblock: simulationBox
+    Box box(make_real3(L, L, L));
+    bool periodicityX = true, periodicityY = true,
+         periodicityZ = false;
+    box.setPeriodicity(periodicityX, periodicityY,
+                       periodicityZ);
+%! codeblockend
+%! codeblock: printPositions
+      auto position
+        = particles->getPos(access::location::cpu,
+                            access::mode::read);
+      const int * index = particles->getIdOrderedIndices(access::location::cpu);
+
+      out<<endl;
+      for(int id = 0; id < numberOfParticles; ++id)
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
+%! codeblockend
+\end{lstlisting}
+\end{comment}
+For example, imagine an ideal gas trapped between two horizontal pistons which
+are quickly yanked apart. The gas would expand freely in the vertical ($z$)
+direction, but we could imagine a periodic system along the $xy$ plane. Hence,
+we would represent this system by changing the value of \texttt{periodicityZ}
+above to \texttt{false}. Fig. \ref{free_expansion} displays the final state of
+the gas as produced by the simulation we have written above.
+
+\begin{figure}
+  \includegraphics[width = \textwidth]{figures/free_expansion.eps}
+  \caption{\label{free_expansion}Free expansion of an ideal gas in the $z$
+           direction. The system is periodic along the $xy$ plane. On the left,
+           the black dots represent particles that were inside the simulation
+           box at the start of the computation, and grey dots represent their
+           periodic images. On the right, black dots point out the particles
+           inside the simulation box at the end of the computation, while grey
+           dots mark the positions of particles in other boxes.}
+\end{figure}
 
 \section{Interactions}
 
-The final ingredient
+The final ingredient adding flavour to our beginner simulations concerns 
+interactions among particles. Nothing very exciting happens while particles
+cannot bounce off, repel or attract each other.
+
+Concentrate on short-range forces.
+
+Minimal image convention.
+
+\begin{comment}
+\begin{lstlisting}
+%! codefile: code/Lennard-Jones.cu
+# include "uammd.cuh"
+# include "Integrator/VerletNVE.cuh"
+
+using namespace uammd;
+using std::make_shared;
+using std::endl;
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  %! codeinsert: particleData
+
+  %! codeinsert: initialConditions
+
+  %! codeinsert: VerletParams
+
+  %! codeinsert: Verlet
+
+  %! codeinsert: outputFile
+
+  %! codeinsert: integration
+
+  sys->finish();
+
+  return 0;
+}
+%! codeend
+\end{lstlisting}
+\end{comment}
+
+\section{Parameters}
