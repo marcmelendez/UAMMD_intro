@@ -158,10 +158,12 @@ We need some more functionality, which we import into our project with
 # include "Integrator/VerletNVE.cuh"
 %!
 \end{lstlisting}
-at the beginning of the file, after including the \texttt{uammd.cuh} header
-file. Now we can use the popular Verlet scheme to integrate the equations of
-motion, but we need to set the values of some parameters first. \texttt{dt} sets
-the size of the integration time step.
+at the beginning of the file, after including the \texttt{uammd.cuh} header 
+file. Now we can use the Verlet scheme to integrate the equations of motion, but 
+we need to set the values of some parameters first. \texttt{dt} sets the size of 
+the integration time step. In the introduction, we used Euler's algorithm to 
+carry out the integration, but Verlet came up with a very popular method which 
+improved the accuracy of integration at very little extra computational cost.
 \begin{lstlisting}
 %! codeblock: VerletParams
   using Verlet = VerletNVE::VerletNVE;
@@ -342,13 +344,16 @@ the gas as produced by the simulation we have written above.
 
 \section{Interactions}
 
-The final ingredient adding flavour to our beginner simulations concerns 
-interactions among particles. Nothing very exciting happens while particles
-cannot bounce off, repel or attract each other.
-
-Concentrate on short-range forces.
-
-Minimal image convention.
+The final ingredient bringing flavour to our beginner simulations concerns 
+interactions among particles. Nothing exciting happens while particles cannot 
+bounce off, repel or attract each other. Here we focus on short-range forces, 
+meaning that they fall off quicker than the distance between particles squared. 
+If that is the case, unless we make the simulation box tiny, particle number $i$ 
+will interact with at most one of the periodic copies of particle $j$. The 
+\textit{minimum-image convention} states that, when we calculate interactions 
+involving particle number $i$, we will neglect all the interactions with 
+periodic images of particle number $j$, except perhaps the closest one (see 
+Figure \ref{minimum-image_convention}).
 
 \begin{comment}
 \begin{lstlisting}

@@ -13,13 +13,13 @@ void goodbye() {
 }
 int main(int argc, char * argv[])
 {
-	cout<<"Hello, World!"<<endl;
+  cout<<"Hello, World!"<<endl;
   int printEverynSteps = 13;
 
   for(int i = 1; i <= 100; ++i) {
     if(printEverynSteps > 0
        && i % printEverynSteps == 0) {
-        cout<<"Iteration: "<<i<<endl;   
+        cout<<"Iteration: "<<i<<endl;
     }
   }
   cout<<"3 + 5 = "<<add(3,5)<<endl;

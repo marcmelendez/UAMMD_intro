@@ -79,7 +79,7 @@ Attribution-NonCommercial-ShareAlike 4.0 International
 
 \input{chapters/introduction.tex}
 
-\chapter{Our first numerical simulation}
+\chapter{Our first UAMMD simulation}
 
 \input{chapters/first_simulation.tex}
 
@@ -88,6 +88,8 @@ Attribution-NonCommercial-ShareAlike 4.0 International
 Seeding the PRNG
 
 \chapter{The Langevin thermostat}
+
+\chapter{Long-range interactions}
 
 \chapter{Hydrodynamics}
 
@@ -105,4 +107,16 @@ weave:
 	latex uammd_intro.tex
 	dvips uammd_intro.dvi
 	ps2pdf uammd_intro.ps
+%! codeend
+
+%! codefile: README.md
+# A Painless Introduction to Programming UAMMD Modules
+
+UAMMD stands for **Universally Adaptable Multiscale Molecular Dynamics**. You
+can find the project at:
+
+[https://github.com/RaulPPelaez/UAMMD]
+
+%! codeinsert: OnUAMMD src: chapters/introduction.tex
+
 %! codeend

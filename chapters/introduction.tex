@@ -19,6 +19,7 @@ comes from the abstract methods it provides to deal with many-body interactions
 on the GPU, allowing you to quickly write simple but extremely efficient
 simulations.
 
+%! codeblock: OnUAMMD
 As the title of this book states, I aim to provide you with a painless 
 introduction to writing UAMMD modules. I am writing with our research group's 
 students in mind, imagining that you have begun to learn about molecular
@@ -27,6 +28,7 @@ If you need a more advanced approach, refer to the Wiki pages on the UAMMD
 repository. Even if you don't, but you feel a painfully slow progress reading
 this book, please skim through the pages and skip ahead until you find an
 interesting section.
+%! codeblockend
 
 \section*{Beginner C++}
 
@@ -49,7 +51,7 @@ the standard (txttt{std}) versions of \texttt{cout} and \texttt{endl}, which
 saves us from having to write \texttt{std::cout} or \texttt{std::endl} each
 time we want to mention them.
 \begin{lstlisting}
-%! codefile: code/helloworld.cpp
+%! codefile: code/helloWorld.cpp
 # include <iostream>
 
 using std::cout;
@@ -92,7 +94,7 @@ The remaining line directs the ``\texttt{Hello, World!}'' string to standard
 output, so that it would typically be printed on the screen, followed by an
 end of line.
 
-Compile the code above with \texttt{g++ helloword.cpp -o helloworld}, or
+Compile the code above with \texttt{g++ helloWorld.cpp -o helloWorld}, or
 something similar. Running the program should print ``Hello, World!'' on the
 screen.
 
@@ -195,10 +197,130 @@ their arguments in parentheses.
 %! codeblockend
 \end{lstlisting}
 
-\section*{Basic particle simulation}
+\section*{\label{basic_simulation}Simulating classical particle physics}
 
-Barometric distribution?
+Numerical simulations of physical systems made up of particles usually involve
+four steps.
+\begin{enumerate}
+  \item Declare the variables representing the state of the system.
+  \item Set the variables to their initial values.
+  \item Calculate how the system evolves in time by integrating the
+        equations of motion, dealing with how each particle interacts with its
+        environment.
+  \item Print out final results and clean up.
+\end{enumerate}
+
+As an easy illustration, let us write a program for a bouncing rubber ball We 
+begin by defining the simulation variables and parameters. Newton's second law 
+tells us that the ball's acceleration $\mathbf{a}$ (which is the second 
+derivative of the position $\mathbf{r}$ with respect to time) equals the 
+acceleration of gravity.
+\begin{equation*}
+  \mathbf{a} = \frac{d^2\mathbf{r}}{dt^2} = \mathbf{g}.
+\end{equation*}
+Now, $\mathbf{g}$ equals $-9.8\ \mathrm{m/s}^2$ in the vertical direction. To
+calculate the motion of the ball, we track the change in its position and
+velocity in small increments of size \texttt{dt}. At every step, we change the
+velocity by adding a change of $-9.8\ dt$ in the vertical direction and then
+update the position by moving the ball to a new position using its current
+velocity. Given $\mathbf{r}(n)$ and $\mathbf{v}(n)$, the position and velocity
+at time step number $n$, we calculate the new position and velocity as
+\begin{align*}
+  \mathbf{r}(n) & = \mathbf{r}(n) + \mathbf{v}(n)\ dt, \\
+  \mathbf{v}(n) & = \mathbf{v}(n) + \mathbf{g}\ dt.
+\end{align*}
+This simple numerical integration algorithm is known as the \textit{Euler
+scheme}.
+
+In our code, we will have to track the horizontal and vertical components of
+the position and velocity, which we store in the two-dimensional arrays
+\texttt{r[2]} and \texttt{v[2]}: \texttt{r[0]} will represent the horizontal
+coordinate and \texttt{r[1]} the vertical component, and similarly for
+\texttt{v[0]} and \texttt{v[1]}. Next, we will indicate the number of steps to
+calculate, the size of the time step and how often to print out the position.
+\begin{lstlisting}
+%! codefile: code/rubberBall.cpp
+# include <iostream>
+
+using std::cout;
+using std::endl;
+
+int main(int argc, char * argv[])
+{
+  /* State of the rubber ball */
+  float r[2]; /* Position (measured in metres) */
+  float v[2]; /* Velocity (in metres/second) */
+
+  float g = -9.8; /* Acceleration of gravity (in m/s^2) */
+
+  /* Integration parameters */
+  int nsteps = 10000; /* Number of time steps to calculate */
+  float dt = 0.001; /* Size of time step (in seconds) */
+  int printEverynSteps = 20;
+%! codepause
+\end{lstlisting}
+The second step on our list suggests that we specify the initial conditions.
+\begin{lstlisting}
+%! codecontinue: code/rubberBall.cpp
+  /* Initial conditions */
+  r[0] = 0;
+  r[1] = 2;
+  v[0] = 0.5;
+  v[1] = 1;
+%! codepause
+\end{lstlisting}
+Thirdly, we integrate the equations of motion with Euler's algorithm. When we
+update the positions and velocities, we must take into account collisions with
+the floor. If the ball hits the floor, the vertical component of its velocity
+reverses and it looses some of its momentum. At the end of the \texttt{for}
+loop we print out one in every 10 steps.
+\begin{lstlisting}
+%! codecontinue: code/rubberBall.cpp
+  /* Euler integration of the equations of motion */
+  for(int step = 0; step <= nsteps; ++step) {
+    /* New position */
+    r[0] = r[0] + v[0]*dt;
+    r[1] = r[1] + v[1]*dt;
+
+    /* New velocity */
+    v[1] = v[1] + g*dt;
+
+    /* Deal with collisions */
+    if(r[1] <= 0 && v[1] < 0) {
+      v[0] = 0.9*v[0];
+      v[1] = -0.8*v[1];
+    }
+
+    /* Output state */
+    if(printEverynSteps > 0
+       && step % printEverynSteps == 0) {
+      cout<<step*dt<<" "<<r[0]<<" "<<r[1]<<endl;
+    }
+  }
+%! codeend
+\end{lstlisting}
+Finally, we close down the program.
+\begin{lstlisting}
+%! codecontinue: code/rubberBall.cpp
+  cout<<"# Simulated time: "<<nsteps*dt<<" seconds. #"<<endl;
+  return 0;
+}
+%! codeend
+\end{lstlisting}
+Compiling and running the code generated the data used to plot the trajectory
+in Fig. \ref{rubberBall}.
+
+\begin{figure}
+  \centering
+  \includegraphics[width = 0.65 \textwidth]{figures/rubberBall.eps}
+  \caption{\label{rubberBall}Trajectory of a bouncing rubber ball calculated
+           with the code written in section \ref{basic_simulation}.}
+\end{figure}
+
 
 \section*{Installing CUDA}
 
-\section*{Running code on liquid?}
+To make UAMMD programs, you will need to install a CUDA compiler and you will
+have to run the programs on a compatible GPU device. Saying more would lead us
+too far astray into a land that I do not wish to visit, so I recommend you check
+the documentation for UAMMD and CUDA.
