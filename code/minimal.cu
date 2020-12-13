@@ -1,3 +1,4 @@
+# include <iostream>
 # include "uammd.cuh" /* UAMMD */
 
 using namespace uammd; /* UAMMD */

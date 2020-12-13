@@ -1,4 +1,3 @@
-# include <iostream>
 # include "uammd.cuh"
 # include "Integrator/VerletNVE.cuh"
 

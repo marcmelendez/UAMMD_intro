@@ -7,6 +7,7 @@ declare \texttt{System} as a shared pointer (if you do not know what this means,
 it doesn't matter right now).
 \begin{lstlisting}
 %! codefile: code/minimal.cu
+# include <iostream>
 # include "uammd.cuh" /* UAMMD */
 
 using namespace uammd; /* UAMMD */
@@ -214,6 +215,7 @@ end of section \ref{physical_system} (page \pageref{particlePositions}).
 \begin{comment}
 \begin{lstlisting}
 %! codefile: code/free_expansion.cu
+# include <iostream>
 # include "uammd.cuh"
 # include "Integrator/VerletNVE.cuh"
 
@@ -383,3 +385,5 @@ int main(int argc, char *argv[]){
 \end{comment}
 
 \section{Parameters}
+
+\section{External fields}
