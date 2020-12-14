@@ -1,4 +1,8 @@
 # include "uammd.cuh"
+# include "utils/InitialConditions.cuh"
+# include "Interactor/Potential/Potential.cuh"
+# include "Interactor/NeighbourList/CellList.cuh"
+# include "Interactor/PairForces.cuh"
 # include "Integrator/VerletNVE.cuh"
 
 using namespace uammd;
@@ -25,9 +29,20 @@ int main(int argc, char *argv[]){
       = particles->getPos(access::location::cpu,
                           access::mode::write);
 
-    for(int i = 0; i < numberOfParticles; ++i)
-      position[i]
-        = make_real4(sys->rng().uniform3(-0.5, 0.5), 0)*L;
+    auto initial =  initLattice(box.boxSize,
+                                numberOfParticles, sc);
+
+    std::copy(initial.begin(), initial.end(), position.begin());
+  }
+
+  auto LJPotential = make_shared<Potential::LJ>(sys);
+  {
+    Potential::LJ::InputPairParameters LJParams;
+    LJParams.epsilon = 1.0;
+    LJParams.sigma = 1.0;
+    LJParams.cutOff = 2.5*LJParams.sigma;
+    LJParams.shift = false;
+    LJPotential->setPotParameters(0, 0, LJParams);
   }
 
   using Verlet = VerletNVE::VerletNVE;
@@ -39,7 +54,7 @@ int main(int argc, char *argv[]){
   auto integrator
     = make_shared<Verlet>(particles, sys, VerletParams);
 
-  std::string outputFile = "free_expansion.dat";
+  std::string outputFile = "Lennard-Jones.dat";
   std::ofstream out(outputFile);
 
   int numberOfSteps = 1000;

@@ -33,23 +33,28 @@ nvcc -O3 -I../uammd/src -I../uammd/src/third_party -o minimal
 minimal.cu
 \end{verbatim}
 making sure that you replace the paths to UAMMD src code with the right path on
-your system. Running \texttt{./minimal} outputs some UAMMD information, with
-your ``Hello, UAMMD!'' message in the middle. Take out all the lines marked
-\texttt{/* UAMMD */} and you are left with a typical ``Hello, World!'' program
-in C++ that only outputs your message.
+your system. With luck, the program will compile without problems. If it does
+not, check the instructions for your system and the compiling information at the
+UAMMD repository.
+
+Running \texttt{./minimal} outputs some UAMMD information, with your ``Hello, 
+UAMMD!'' message in the middle. Take out all the lines marked \texttt{/* UAMMD 
+*/} and you are left with a typical ``Hello, World!'' program in C++ that only 
+outputs your message.
 
 It might be helpful to go through the program to explain what each UAMMD line 
 does in very general terms. You \texttt{include} the \texttt{uammd.cuh} header 
 file and use the \texttt{uammd} namespace to have access to the functionality 
 defined in the UAMMD source code. Within the main function, we enclose all our 
-UAMMD code between the creation of a \texttt{System} and its destruction. The
-\texttt{System} represents the computing environment in UAMMD. It deals with
-access to the GPU and random number generation on the CPU, for example. In the
-example above, we created a \texttt{System} named \texttt{sys} with
+UAMMD code between the creation of a \texttt{System} and its \texttt{finish}
+call. The \texttt{System} represents the computing environment in UAMMD. It
+deals with access to the GPU and random number generation on the CPU, for
+example. In the code above, we created a \texttt{System} named \texttt{sys} with
 \begin{verbatim}
 auto sys = make_shared<System>(argc,argv);
 \end{verbatim}
-and destroyed it at the end of the program with \texttt{sys->finish();}.
+and called \texttt{sys->finish()} at the end of the program to ensure a graceful
+exit.
 
 The program compiles and runs, but it feels like an empty sandwich. By expanding
 it slightly, though, we can run a simple simulation.
@@ -97,9 +102,10 @@ as a \texttt{real} value. Depending on the options at compilation, this means
 either a floating point or a double precision number. The final number in the
 four-vector represents the particle type (here set to zero).
 
-Making the position variable local guarantees that we will not read it later on,
-thinking that we have access to the positions, but without having received the
-updated values.
+Making the position variable local guarantees that we will not try to read it
+later on, thinking that we have access to the positions, but without having
+received the updated values. Use \texttt{getPos} every time you need to access
+the positions.
 
 Suppose that, instead of writing to the particle positions, we wished to read
 the velocities. The code snippet would resemble the box above, but we would call
@@ -146,7 +152,7 @@ that you are searching for a particle with \texttt{id = 3}. Then
 \texttt{position[index[id]]} would give you its position in space (and its type
 as the fourth component of the position vector).
 
-\section{Integrators}
+\section{Integrating the equations of motion}
 
 The next ingredients adding flavour to our sandwich are time and motion. To get
 the particles to move, we have to integrate their equations of motion
@@ -342,23 +348,162 @@ the gas as produced by the simulation we have written above.
            dots mark the positions of particles in other boxes.}
 \end{figure}
 
+\section{Initial conditions}
+
+For positions and velocities!
+
+\begin{lstlisting}
+# include "utils/InitialConditions.cuh"
+\end{lstlisting}
+
+
+\begin{lstlisting}
+%! codeblock: latticeInitialConditions
+  real L = 128;
+  %! codeinsert: simulationBox
+
+  {
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
+
+    auto initial =  initLattice(box.boxSize,
+                                numberOfParticles, sc);
+
+    std::copy(initial.begin(), initial.end(), position.begin());
+  }
+%! codeblockend
+\end{lstlisting}
+
+Overlapping particles may feel huge repulsive forces and shoot off, causing 
+a chain reaction that makes your system blow up in the first few steps of a 
+simulation.
+
+
+
 \section{Interactions}
 
-The final ingredient bringing flavour to our beginner simulations concerns 
-interactions among particles. Nothing exciting happens while particles cannot 
-bounce off, repel or attract each other. Here we focus on short-range forces, 
-meaning that they fall off quicker than the distance between particles squared. 
-If that is the case, unless we make the simulation box tiny, particle number $i$ 
-will interact with at most one of the periodic copies of particle $j$. The 
-\textit{minimum-image convention} states that, when we calculate interactions 
-involving particle number $i$, we will neglect all the interactions with 
-periodic images of particle number $j$, except perhaps the closest one (see 
-Figure \ref{minimum-image_convention}).
+The final ingredient in our beginner simulations concerns interactions among 
+particles. Nothing exciting happens while particles cannot bounce off, repel or 
+attract each other. Here we focus on short-range forces, meaning that they fall 
+off quicker than the distance between particles squared. If that is the case, 
+unless we make the simulation box tiny, particle number $i$ will interact with 
+at most one of the periodic copies of particle $j$. The \textit{minimum-image 
+convention} states that, when we calculate interactions involving particle 
+number $i$, we will neglect all the interactions with periodic images of 
+particle number $j$, except perhaps the closest one (see Figure 
+\ref{minimum-image_convention}).
 
+A prototypical example of a molecular dynamics simulation involves spheres 
+interacting with each other through a Lennard-Jones potential,
+\begin{equation*}
+  V(r) = 4\epsilon\left(\left(\frac{\sigma}{r}\right)^{12}
+                        - \left(\frac{\sigma}{r}\right)^6\right). 
+\end{equation*}
+The energy $V$ depends on the distance $r$ between the centres of spheres. If 
+the particles come closer than $\sigma$, then they feel a strong repulsion. At
+greater distances, they attract each other weakly with a force that falls off
+as the sixth power of $r$, in accordance with the law for London dispersion
+forces. In the right circumstances, particles may stick together, bonding with
+an energy equal to $\epsilon$. Systems with Lennard-Jones interactions represent
+neutrally-charged swarms of atoms, such as low-temperature argon, and have been
+studied in such great detail that they are used extensively for verifying that
+code works correctly and for comparing efficiencies.
+
+A very common speed-up trick sets a cut-off radius (usually at
+$r = r_{\mathrm{cut}} = 2.5 \sigma$) beyond which $V(r) = 0$. Some researchers
+also shift the potential slightly to avoid the discontinuity in $V$ at
+$r = r_{\mathrm{cut}}$.
+
+If you want to incorporate the Lennard-Jones interactions, you have to carry out 
+the following three steps:
+\begin{enumerate}
+  \item Specify the functional form of the interaction.
+  \item Create an \textit{interactor}.
+  \item Add the \textit{interactor} to the \textit{integrator}.
+\end{enumerate}
+
+Take each point in turn, beginning with the potential function. To incorporate
+it, we add
+\begin{lstlisting}
+# include "Interactor/Potential/Potential.cuh"
+%!
+\end{lstlisting}
+to our include list at the beginning of the code file. Fortunately, the
+Lennard-Jones potential has already been implemented in UAMMD, so we
+only need to specify its parameters.
+\begin{lstlisting}
+%! codeblock: Lennard-JonesPotential
+  auto LJPotential = make_shared<Potential::LJ>(sys);
+  {
+    Potential::LJ::InputPairParameters LJParams;
+    LJParams.epsilon = 1.0;
+    LJParams.sigma = 1.0;
+    LJParams.cutOff = 2.5*LJParams.sigma;
+    LJParams.shift = false;
+    LJPotential->setPotParameters(0, 0, LJParams);
+  }
+%! codeblockend
+\end{lstlisting}
+You should find these parameters self-evident with the exception of the first
+two zeros in \texttt{setPotParameters}. These indicate that we are setting the
+interaction potential among particles of type 0. If we wished to add, for
+example, a different type of interaction between particles of type 0 and 1,
+then we would have a similar listing ending in something like
+\begin{lstlisting}
+    LJPotential->setPotParameters(0, 1, LJParams2);
+\end{lstlisting}
+
+Step two mentioned creating an ``interactor''. We will use the
+\texttt{PairForces} module.
+\begin{lstlisting}
+# include "Interactor/PairForces.cuh"
+\end{lstlisting}
+
+Taking the point of view of a physicist, think of an interactor as an 
+\textit{interaction} that the integrator must take into account to calculate the 
+motions. We must provide the algorithm for short-ranged forces with the 
+information about the simulation box, so that it can calculate interactions 
+using the minimum-image convention, as in the first paragraph in the snippet 
+below. We want our interaction to apply to all particles, so we define the 
+\texttt{allParticles} group. The new interaction is defined next, using the 
+reference to our system (\texttt{particles}), the relevant group 
+(\texttt{allparticles}), the system (\texttt{sys}), information about the
+simulation box (\texttt{interactionParams}) and, finally, the Lennard-Jones
+potential that we defined above (\texttt{LJPotential}).
+\begin{lstlisting}
+%! codeblock: Lennard-JonesPotential
+  {
+    using LJForces = PairForces<Potential::LJ>;
+    LJForces::Parameters interactionParams;
+    interactionParams.box = box;
+
+    auto allParticles
+      = make_shared<ParticleGroup>(particles, sys, "All");
+
+    auto interaction
+      = make_shared<PairForces>(particles, allParticles,
+                                sys, interactionParams,
+                                LJPotential);
+
+    integrator->addInteractor(interaction);
+  }
+%! codeblockend
+\end{lstlisting}
+The code block ends with step three: adding the interaction to the integrator
+with the \texttt{addIntegrator} method.
+
+With this, we have transformed our ideal gas into a system capable of phase
+transitions and interfaces. Remember to change the name of the output file to
+something more meaningfull, like ``\texttt{Lennard-Jones.dat}''.
 \begin{comment}
 \begin{lstlisting}
 %! codefile: code/Lennard-Jones.cu
 # include "uammd.cuh"
+# include "utils/InitialConditions.cuh"
+# include "Interactor/Potential/Potential.cuh"
+# include "Interactor/NeighbourList/CellList.cuh"
+# include "Interactor/PairForces.cuh"
 # include "Integrator/VerletNVE.cuh"
 
 using namespace uammd;
@@ -371,13 +516,19 @@ int main(int argc, char *argv[]){
 
   %! codeinsert: particleData
 
-  %! codeinsert: initialConditions
+  %! codeinsert: latticeInitialConditions
+
+  %! codeinsert: Lennard-JonesPotential
 
   %! codeinsert: VerletParams
 
   %! codeinsert: Verlet
 
-  %! codeinsert: outputFile
+  std::string outputFile = "Lennard-Jones.dat";
+  std::ofstream out(outputFile);
+
+  int numberOfSteps = 1000;
+  int printEverynSteps = 100;
 
   %! codeinsert: integration
 
@@ -389,6 +540,12 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
-\section{Parameters}
+%%%% Figure
+%% Compare LJ with ideal gas RDF by deactivating addInteractor line.
 
 \section{External fields}
+
+\section{Parameter files}
+
+\section{Logging}
+
