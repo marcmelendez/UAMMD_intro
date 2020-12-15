@@ -437,6 +437,19 @@ number $i$, we will neglect all the interactions with periodic images of
 particle number $j$, except perhaps the closest one (see Figure 
 \ref{minimum-image_convention}).
 
+\begin{figure}
+  \centering
+  \includegraphics[width = \textwidth]{figures/minimum-image_convention.eps}
+  \caption{\label{minimum-image_convention}Particles in a periodic system, with
+           a simulation box drawn in solid lines. Particles $1$ and $2$ in the
+           box interact with each other, but with none of their periodic images,
+           which lie too far away (two of the periodic images of particle $1$
+           have been labelled $1'$ and $1''$, and similarly for particle $2$).
+           In contrast, particle $A$ does not interact with particle $B$ at the
+           other side of the box, but it does interact with an image of $B$
+           (labelled $B'$). Similarly $B$ interacts with $A''$.}
+\end{figure}
+
 A prototypical example of a molecular dynamics simulation involves spheres 
 interacting with each other through a Lennard-Jones potential,
 \begin{equation*}
