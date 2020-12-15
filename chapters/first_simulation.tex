@@ -369,8 +369,8 @@ and change the inital conditions block to
 \begin{lstlisting}
 %! codeblock: latticeInitialConditions
   real L = 128;
-  %! codeinsert: simulationBox
 
+  %! codeinsert: LJsimulationBox
   {
     auto position
       = particles->getPos(access::location::cpu,
@@ -388,6 +388,20 @@ cubic''. Other options are face-centred cubic (\texttt{fcc}), body-centred cubic
 (\texttt{bcc}), hexagonal close-packed (\texttt{hcp}), diamond structure
 (\texttt{dia}) and the two-dimensional triangular (\texttt{tri}) and square
 (\texttt{sq}) lattices.
+
+Remember to reset the periodicity of the box in the $z$ direction:
+\texttt{periodicityZ = true}.
+\begin{comment}
+\begin{lstlisting}
+%! codeblock: LJsimulationBox
+    Box box(make_real3(L, L, L));
+    bool periodicityX = true, periodicityY = true,
+         periodicityZ = true;
+    box.setPeriodicity(periodicityX, periodicityY,
+                       periodicityZ);
+%! codeblockend
+\end{lstlisting}
+\end{comment}
 
 Concerning the velocities, the ideal gas example picked random directions and set
 the speeds in such a way that you got the energy per particle set among the
@@ -501,7 +515,7 @@ reference to our system (\texttt{particles}), the relevant group
 simulation box (\texttt{interactionParams}) and, finally, the Lennard-Jones
 potential that we defined above (\texttt{LJPotential}).
 \begin{lstlisting}
-%! codeblock: Lennard-JonesPotential
+%! codeblock: Lennard-JonesInteraction
   {
     using LJForces = PairForces<Potential::LJ>;
     LJForces::Parameters interactionParams;
@@ -511,8 +525,8 @@ potential that we defined above (\texttt{LJPotential}).
       = make_shared<ParticleGroup>(particles, sys, "All");
 
     auto interaction
-      = make_shared<PairForces>(particles, allParticles,
-                                sys, interactionParams,
+      = make_shared<LJForces>(particles, allParticles,
+                              sys, interactionParams,
                                 LJPotential);
 
     integrator->addInteractor(interaction);
@@ -547,11 +561,13 @@ int main(int argc, char *argv[]){
 
   %! codeinsert: latticeInitialConditions
 
-  %! codeinsert: Lennard-JonesPotential
-
   %! codeinsert: VerletParams
 
   %! codeinsert: Verlet
+
+  %! codeinsert: Lennard-JonesPotential
+
+  %! codeinsert: Lennard-JonesInteraction
 
   std::string outputFile = "Lennard-Jones.dat";
   std::ofstream out(outputFile);
@@ -572,9 +588,19 @@ int main(int argc, char *argv[]){
 %%%% Figure
 %% Compare LJ with ideal gas RDF by deactivating addInteractor line.
 
-\section{External fields}
-
 \section{Parameter files}
 
 \section{Logging}
 
+\begin{comment}
+List of programs written in this chapter:
+
+%! codeblock: codelist
+* `minimal.cu`: A minimal UAMMD program that only prints a Hello message and
+  then exits.
+* `free_expansion.cu`: Ideal gas expanding freely in the vertical direction with
+  periodic boundary conditions in the other two directions.
+* `Lennard-Jones.cu`: Particles in a periodic box interacting through a
+  Lennard-Jones potential.
+%! codeblockend
+\end{comment}
