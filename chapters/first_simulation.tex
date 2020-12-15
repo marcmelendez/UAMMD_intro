@@ -350,13 +350,22 @@ the gas as produced by the simulation we have written above.
 
 \section{Initial conditions}
 
-For positions and velocities!
+We have chosen random initial positions, distributed uniformly, for the 
+particles; a dangerous choice if we were not dealing with an ideal gas. In many 
+systems, particles resist being pushed too close together with great force. As 
+you increase the density of particles, you make it more probable for particles 
+placed randomly to fall too close to each other. Overlapping particles may feel 
+a huge repulsion and shoot off, causing a chain reaction that makes your system 
+blow up in the first few steps of a simulation.
 
+A simple solution, apart from reading the initial conditions in from an external 
+file, consists in setting particles on the nodes of a crystal lattice and 
+letting them reshuffle during the initial stages of the simulation. As an
+illustration, include the right header,
 \begin{lstlisting}
 # include "utils/InitialConditions.cuh"
 \end{lstlisting}
-
-
+and change the inital conditions block to
 \begin{lstlisting}
 %! codeblock: latticeInitialConditions
   real L = 128;
@@ -374,12 +383,32 @@ For positions and velocities!
   }
 %! codeblockend
 \end{lstlisting}
+The ``\texttt{sc}'' parameter in \texttt{initLattice} refers to ``simple
+cubic''. Other options are face-centred cubic (\texttt{fcc}), body-centred cubic
+(\texttt{bcc}), hexagonal close-packed (\texttt{hcp}), diamond structure
+(\texttt{dia}) and the two-dimensional triangular (\texttt{tri}) and square
+(\texttt{sq}) lattices.
 
-Overlapping particles may feel huge repulsive forces and shoot off, causing 
-a chain reaction that makes your system blow up in the first few steps of a 
-simulation.
+Concerning the velocities, the ideal gas example picked random directions and set
+the speeds in such a way that you got the energy per particle set among the
+parameters. This choice should be fine for our present example, but perhaps you
+would later like to experiment imposing an initial sine-shaped velocity profile.
+In that event, you could set \texttt{VerletParams.initVelocities} to false and
+then write something like this:
+\begin{lstlisting}
+  {
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::read);
+    auto velocity
+      = particles->getVel(access::location::cpu,
+                          access::mode::write);
 
-
+    for(int i = 0; i < numberOfParticles; ++i)
+      velocity[i].x
+        = sin(2*M_PI*position[i].z/L);
+  }
+\end{lstlisting}
 
 \section{Interactions}
 
