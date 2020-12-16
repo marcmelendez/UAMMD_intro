@@ -15,7 +15,7 @@ int main(int argc, char *argv[]){
     = make_shared<ParticleData>(numberOfParticles, sys);
 
   real L = 128;
-    Box box(make_real3(L, L, L));
+    Box box(make_real3(L, L, std::numeric_limits<real>::infinity()));
     bool periodicityX = true, periodicityY = true,
          periodicityZ = false;
     box.setPeriodicity(periodicityX, periodicityY,

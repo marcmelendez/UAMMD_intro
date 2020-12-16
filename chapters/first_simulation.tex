@@ -312,7 +312,7 @@ that lie within that box with
 \begin{comment}
 \begin{lstlisting}
 %! codeblock: simulationBox
-    Box box(make_real3(L, L, L));
+    Box box(make_real3(L, L, std::numeric_limits<real>::infinity()));
     bool periodicityX = true, periodicityY = true,
          periodicityZ = false;
     box.setPeriodicity(periodicityX, periodicityY,
@@ -334,7 +334,11 @@ For example, imagine an ideal gas trapped between two horizontal pistons which
 are quickly yanked apart. The gas would expand freely in the vertical ($z$)
 direction, but we could imagine a periodic system along the $xy$ plane. Hence,
 we would represent this system by changing the value of \texttt{periodicityZ}
-above to \texttt{false}. Fig. \ref{free_expansion} displays the final state of
+above to \texttt{false} and making the box infinite in that direction
+\begin{lstlisting}
+    Box box(make_real3(L, L, std::numeric_limits<real>::infinity()));
+\end{lstlisting}
+Fig. \ref{free_expansion} displays the final state of
 the gas as produced by the simulation we have written above.
 
 \begin{figure}
@@ -350,13 +354,13 @@ the gas as produced by the simulation we have written above.
 
 \section{Initial conditions}
 
-We have chosen random initial positions, distributed uniformly, for the 
-particles; a dangerous choice if we were not dealing with an ideal gas. In many 
-systems, particles resist being pushed too close together with great force. As 
-you increase the density of particles, you make it more probable for particles 
-placed randomly to fall too close to each other. Overlapping particles may feel 
-a huge repulsion and shoot off, causing a chain reaction that makes your system 
-blow up in the first few steps of a simulation.
+Previously, we have chosen random initial positions, distributed uniformly, for 
+the particles; a dangerous choice if we were not dealing with an ideal gas. In 
+many systems, particles resist being pushed too close together with great force. 
+As you increase the density of particles, you make it more probable for 
+particles placed randomly to fall too close to each other. Overlapping particles 
+may feel a huge repulsion and shoot off, causing a chain reaction that makes 
+your system blow up in the first few steps of a simulation.
 
 A simple solution, apart from reading the initial conditions in from an external 
 file, consists in setting particles on the nodes of a crystal lattice and 
@@ -389,7 +393,7 @@ cubic''. Other options are face-centred cubic (\texttt{fcc}), body-centred cubic
 (\texttt{dia}) and the two-dimensional triangular (\texttt{tri}) and square
 (\texttt{sq}) lattices.
 
-Remember to reset the periodicity of the box in the $z$ direction:
+Remember to reset the periodicity and size of the box in the $z$ direction:
 \texttt{periodicityZ = true}.
 \begin{comment}
 \begin{lstlisting}
@@ -597,9 +601,35 @@ int main(int argc, char *argv[]){
 %! codeend
 \end{lstlisting}
 \end{comment}
+A plot of the final positions after running the program will probably not look
+very different from the case for an ideal gas, but calculating the radial
+distribution function from this set of our $10^5$ particles reveals a very
+obvious spike that you will not find in the case of an ideal gas (see Figure
+\ref{Lennard-Jones.rdf}). You can easily remove the Lennard-Jones interaction by
+commenting out the \texttt{addInteractor} line to deactivate it.
+\begin{lstlisting}
+    /* integrator->addInteractor(interaction); */
+\end{lstlisting}
+The simulation would then generate the plot on the left of Figure
+\ref{Lennard-Jones.rdf}.
 
-%%%% Figure
-%% Compare LJ with ideal gas RDF by deactivating addInteractor line.
+The radial distribution function measures how the particle distribution around a
+typical particle differs on average from that of an ideal gas. In the latter
+case, particles distribute uniformly in the volume, but when you activate the
+interaction, particles cannot approach each other too closely, so you see that
+$g(r) \approx 0$ when $r < \sigma$. Furthermore, particles can stick together,
+leading to the subsequent spike. Farther away, the distribution appears as
+homogenous as an ideal gas but, as we will see in the chapter on the Langevin
+thermostat, more and more peaks appear as you lower the temperature of the
+environment.
+
+\begin{figure}
+  \includegraphics[width = \textwidth]{figures/Lennard-Jones.rdf.eps}
+  \caption{\label{Lennard-Jones.rdf}Radial distribution function $g(r)$ for an
+           ideal gas (\textit{left}) and a Lennar-Jones fluid (\textit{right}).
+           The dashed line represents the theoretical $g(r) = 1$ for an ideal
+           gas.}
+\end{figure}
 
 \section{Parameter files}
 
