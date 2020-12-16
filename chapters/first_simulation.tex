@@ -531,12 +531,11 @@ Taking the point of view of a physicist, think of an interactor as an
 motions. We must provide the algorithm for short-ranged forces with the 
 information about the simulation box, so that it can calculate interactions 
 using the minimum-image convention, as in the first paragraph in the snippet 
-below. We want our interaction to apply to all particles, so we define the 
-\texttt{allParticles} group. The new interaction is defined next, using the 
-reference to our system (\texttt{particles}), the relevant group 
-(\texttt{allparticles}), the system (\texttt{sys}), information about the
-simulation box (\texttt{interactionParams}) and, finally, the Lennard-Jones
+below.The new interaction is defined next, using the reference to our system 
+(\texttt{particles}), the system (\texttt{sys}), information about the 
+simulation box (\texttt{interactionParams}) and, finally, the Lennard-Jones 
 potential that we defined above (\texttt{LJPotential}).
+
 \begin{lstlisting}
 %! codeblock: Lennard-JonesInteraction
   {
@@ -544,13 +543,10 @@ potential that we defined above (\texttt{LJPotential}).
     LJForces::Parameters interactionParams;
     interactionParams.box = box;
 
-    auto allParticles
-      = make_shared<ParticleGroup>(particles, sys, "All");
-
     auto interaction
-      = make_shared<LJForces>(particles, allParticles,
-                              sys, interactionParams,
-                                LJPotential);
+      = make_shared<LJForces>(particles, sys,
+                              interactionParams,
+                              LJPotential);
 
     integrator->addInteractor(interaction);
   }
@@ -642,6 +638,94 @@ environment.
 
 \section{Parameter files}
 
+Having completed your first interesting simulation, you will want to play with
+it. What happens when you change the number of particles, what about the cut-off
+radius, or the Lennard-Jones $\epsilon$ and $\sigma$ parameters? You see, now
+you can carry out your own virtual experiments. However, having to recompile the
+program every single time that you adjust a parameter quickly becomes annoying.
+Why not compile the program once and have it read in the parameters from the
+command-line or an external file? There are many ways to achieve this, but we
+will focus on a neat tool written for UAMMD. You get it for free by inserting
+\begin{lstlisting}
+# include "utils/InputFile.cuh"
+%!
+\end{lstlisting}
+at the top of your code. Now let us create a data structure containing a list of
+all the parameters that we need to run our simulation.
+\begin{lstlisting}
+%! codeblock: parameterList
+  struct InputParameters {
+    int numberOfParticles;
+    real L;
+    real dt;
+    real particleEnergy;
+    real epsilon;
+    real sigma;
+    real cutOff;
+    std::string outputFile;
+    int numberOfSteps;
+    int printEverynSteps;
+  };
+%! codeblockend
+\end{lstlisting}
+Next, we ask the program to input the variables from an external file named
+\texttt{data.main} and store the values in our data structure. The rest of the
+program assigns the parameter values by taking them from the data structure.
+To avoid code bloat, we will write a separate function capable of reading in
+all the data from the file. We will write the following function before our
+\texttt{main}:
+\begin{lstlisting}
+InputParameters readParameterFile(std::shared_ptr<System> sys)
+%!
+\end{lstlisting}
+If the \texttt{data.main} file did not exist when the program was run, we should
+create it containing some safe default values.
+\begin{lstlisting}
+{
+  if(!std::ifstream("data.main").good()) {
+    std::ofstream defaultParameters("data.main");
+    defaultParameters<<"numberOfParticles 100000"<<endl;
+    defaultParameters<<"boxSize 128"<<endl;
+    defaultParameters<<"timeStep 0.01"<<endl;
+
+    /* And so on for all the other parameters ... */
+  }
+%!
+\end{lstlisting}
+To read in the data from the parameter file, we open \texttt{data.main} as an
+input file which we will refer to as \texttt{parameterFile}.
+\begin{lstlisting}
+  InputFile parameterFile("data.main", sys);
+  InputParameters params;
+
+  parameterFile.getOption("numberOfParticles",
+    InputFile::Required)>>params.numberOfParticles;
+  parameterFile.getOption("boxSize",
+    InputFile::Required)>>params.L;
+  parameterFile.getOption("epsilon",
+    InputFile::Required)>>params.epsilon;
+  parameterFile.getOption("sigma",
+    InputFile::Required)>>params.sigma;
+
+          /* And so on ... */
+}
+%!
+\end{lstlisting}
+In the main function, after declaring the System \texttt{sys}, we read in all
+the parameter values with
+\begin{lstlisting}
+  InputParameters simParams = readParameterFile(sys);
+%!
+\end{lstlisting}
+Whenever we need a parameter value in the remaining code, we just assign it from
+the \texttt{simParams} data structure, as in
+\begin{lstlisting}
+  int numberOfParticles = simParams.numberOfParticles;
+  real L = simParams.L;
+%!
+\end{lstlisting}
+and so on.
+
 \section{Logging}
 
 \begin{comment}
@@ -654,5 +738,78 @@ List of programs written in this chapter:
   periodic boundary conditions in the other two directions.
 * `Lennard-Jones.cu`: Particles in a periodic box interacting through a
   Lennard-Jones potential.
+* `superLennard-Jones.cu`: Improved Lennard-Jones system with logging and
+  external parameter file.
 %! codeblockend
+
+Final version of the Lennard-Jones simulation program:
+%! codefile: superLennard-Jones.cu
+# include "uammd.cuh"
+# include "utils/InputFile.cuh"
+# include "utils/InitialConditions.cuh"
+# include "Interactor/Potential/Potential.cuh"
+# include "Interactor/NeighbourList/CellList.cuh"
+# include "Interactor/PairForces.cuh"
+# include "Integrator/VerletNVE.cuh"
+
+using namespace uammd;
+using std::make_shared;
+using std::endl;
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  {
+    InputFile parameterFile("data.main", sys);
+    parameterFile.getOption("numberOfParticles",
+      InputFile::Required)>>simParams.numberOfParticles;
+    parameterFile.getOption("boxSize",
+      InputFile::Required)>>simParams.L;
+    parameterFile.getOption("timeStep",
+      InputFile::Required)>>simParams.dt;
+    parameterFile.getOption("particleEnergy",
+      InputFile::Required)>>simParams.particleEnergy;
+    parameterFile.getOption("epsilon",
+      InputFile::Required)>>simParams.epsilon;
+    parameterFile.getOption("sigma",
+      InputFile::Required)>>simParams.sigma;
+    parameterFile.getOption("cutOff",
+      InputFile::Required)>>simParams.cutOff;
+    parameterFile.getOption("outputFile",
+      InputFile::Required)>>simParams.outputFile;
+    parameterFile.getOption("numberOfSteps",
+      InputFile::Required)>>simParams.numberOfSteps;
+    parameterFile.getOption("printEverynSteps",
+      InputFile::Required)>>simParams.printEverynSteps;
+  }
+
+  int numberOfParticles = simParams.numberOfParticles;
+  auto particles
+    = make_shared<ParticleData>(numberOfParticles, sys);
+
+  %! codeinsert: latticeInitialConditions
+
+  %! codeinsert: VerletParams
+
+  %! codeinsert: Verlet
+
+  %! codeinsert: Lennard-JonesPotential
+
+  %! codeinsert: Lennard-JonesInteraction
+
+  std::string outputFile = "Lennard-Jones.dat";
+  std::ofstream out(outputFile);
+
+  int numberOfSteps = 1000;
+  int printEverynSteps = 100;
+
+  %! codeinsert: integration
+
+  sys->finish();
+
+  return 0;
+}
+%! codeend
+
 \end{comment}
