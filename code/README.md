@@ -13,4 +13,6 @@
   periodic boundary conditions in the other two directions.
 * `Lennard-Jones.cu`: Particles in a periodic box interacting through a
   Lennard-Jones potential.
+* `superLennard-Jones.cu`: Improved Lennard-Jones system with logging and
+  external parameter file.
 

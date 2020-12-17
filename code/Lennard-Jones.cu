@@ -19,11 +19,11 @@ int main(int argc, char *argv[]){
 
   real L = 128;
 
-    Box box(make_real3(L, L, L));
-    bool periodicityX = true, periodicityY = true,
-         periodicityZ = true;
-    box.setPeriodicity(periodicityX, periodicityY,
-                       periodicityZ);
+  Box box(make_real3(L, L, L));
+  bool periodicityX = true, periodicityY = true,
+       periodicityZ = true;
+  box.setPeriodicity(periodicityX, periodicityY,
+                     periodicityZ);
   {
     auto position
       = particles->getPos(access::location::cpu,
@@ -59,13 +59,10 @@ int main(int argc, char *argv[]){
     LJForces::Parameters interactionParams;
     interactionParams.box = box;
 
-    auto allParticles
-      = make_shared<ParticleGroup>(particles, sys, "All");
-
     auto interaction
-      = make_shared<LJForces>(particles, allParticles,
-                              sys, interactionParams,
-                                LJPotential);
+      = make_shared<LJForces>(particles, sys,
+                              interactionParams,
+                              LJPotential);
 
     integrator->addInteractor(interaction);
   }

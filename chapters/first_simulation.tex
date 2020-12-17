@@ -312,11 +312,11 @@ that lie within that box with
 \begin{comment}
 \begin{lstlisting}
 %! codeblock: simulationBox
-    Box box(make_real3(L, L, std::numeric_limits<real>::infinity()));
-    bool periodicityX = true, periodicityY = true,
-         periodicityZ = false;
-    box.setPeriodicity(periodicityX, periodicityY,
-                       periodicityZ);
+  Box box(make_real3(L, L, std::numeric_limits<real>::infinity()));
+  bool periodicityX = true, periodicityY = true,
+       periodicityZ = false;
+  box.setPeriodicity(periodicityX, periodicityY,
+                     periodicityZ);
 %! codeblockend
 %! codeblock: printPositions
       auto position
@@ -401,11 +401,11 @@ Remember to reset the periodicity and size of the box in the $z$ direction:
 \begin{comment}
 \begin{lstlisting}
 %! codeblock: LJsimulationBox
-    Box box(make_real3(L, L, L));
-    bool periodicityX = true, periodicityY = true,
-         periodicityZ = true;
-    box.setPeriodicity(periodicityX, periodicityY,
-                       periodicityZ);
+  Box box(make_real3(L, L, L));
+  bool periodicityX = true, periodicityY = true,
+       periodicityZ = true;
+  box.setPeriodicity(periodicityX, periodicityY,
+                     periodicityZ);
 %! codeblockend
 \end{lstlisting}
 \end{comment}
@@ -639,7 +639,7 @@ environment.
 \section{Parameter files}
 
 Having completed your first interesting simulation, you will want to play with
-it. What happens when you change the number of particles, what about the cut-off
+it. What happens when you change the number of particles? What about the cut-off
 radius, or the Lennard-Jones $\epsilon$ and $\sigma$ parameters? You see, now
 you can carry out your own virtual experiments. However, having to recompile the
 program every single time that you adjust a parameter quickly becomes annoying.
@@ -647,25 +647,25 @@ Why not compile the program once and have it read in the parameters from the
 command-line or an external file? There are many ways to achieve this, but we
 will focus on a neat tool written for UAMMD. You get it for free by inserting
 \begin{lstlisting}
-# include "utils/InputFile.cuh"
+# include "utils/InputFile.h"
 %!
 \end{lstlisting}
 at the top of your code. Now let us create a data structure containing a list of
 all the parameters that we need to run our simulation.
 \begin{lstlisting}
 %! codeblock: parameterList
-  struct InputParameters {
-    int numberOfParticles;
-    real L;
-    real dt;
-    real particleEnergy;
-    real epsilon;
-    real sigma;
-    real cutOff;
-    std::string outputFile;
-    int numberOfSteps;
-    int printEverynSteps;
-  };
+struct InputParameters {
+  int numberOfParticles;
+  real L;
+  real dt;
+  real epsilon;
+  real sigma;
+  real cutOff;
+  real particleEnergy;
+  std::string outputFile;
+  int numberOfSteps;
+  int printEverynSteps;
+};
 %! codeblockend
 \end{lstlisting}
 Next, we ask the program to input the variables from an external file named
@@ -675,26 +675,47 @@ To avoid code bloat, we will write a separate function capable of reading in
 all the data from the file. We will write the following function before our
 \texttt{main}:
 \begin{lstlisting}
+%! codeblock: readParameterFile
 InputParameters readParameterFile(std::shared_ptr<System> sys)
-%!
+{
+%! codeinsert: defaultFile
+%! codeinsert: readParameters
+%! codeblockend
 \end{lstlisting}
 If the \texttt{data.main} file did not exist when the program was run, we should
 create it containing some safe default values.
 \begin{lstlisting}
-{
+%! codeblock: defaultFile
   if(!std::ifstream("data.main").good()) {
+    %! codeinsert: defaultFileMsg
+    %! codeinsert: fileErrorMsg
     std::ofstream defaultParameters("data.main");
     defaultParameters<<"numberOfParticles 100000"<<endl;
     defaultParameters<<"boxSize 128"<<endl;
     defaultParameters<<"timeStep 0.01"<<endl;
 
     /* And so on for all the other parameters ... */
+    %! codeinsert: moreDefaultParameters
   }
-%!
+%! codeblockend
 \end{lstlisting}
+\begin{comment}
+\begin{lstlisting}
+%! codeblock: moreDefaultParameters
+    defaultParameters<<"epsilon 1.0"<<endl;
+    defaultParameters<<"sigma 1.0"<<endl;
+    defaultParameters<<"cutOff 2.5"<<endl;
+    defaultParameters<<"particleEnergy 1.0"<<endl;
+    defaultParameters<<"outputFile Lennard-Jones.dat"<<endl;
+    defaultParameters<<"numberOfSteps 10000"<<endl;
+    defaultParameters<<"printEverynSteps 1000"<<endl;
+%! codeblockend
+\end{lstlisting}
+\end{comment}
 To read in the data from the parameter file, we open \texttt{data.main} as an
 input file which we will refer to as \texttt{parameterFile}.
 \begin{lstlisting}
+%! codeblock: readParameters
   InputFile parameterFile("data.main", sys);
   InputParameters params;
 
@@ -702,20 +723,43 @@ input file which we will refer to as \texttt{parameterFile}.
     InputFile::Required)>>params.numberOfParticles;
   parameterFile.getOption("boxSize",
     InputFile::Required)>>params.L;
+  parameterFile.getOption("timeStep",
+    InputFile::Required)>>params.dt;
+
+          /* And so on ... */
+  %! codeinsert: readMoreParameters
+
+  return params;
+}
+%! codeblockend
+\end{lstlisting}
+\begin{comment}
+\begin{lstlisting}
+%! codeblock: readMoreParameters
   parameterFile.getOption("epsilon",
     InputFile::Required)>>params.epsilon;
   parameterFile.getOption("sigma",
     InputFile::Required)>>params.sigma;
-
-          /* And so on ... */
-}
-%!
+  parameterFile.getOption("cutOff",
+    InputFile::Required)>>params.cutOff;
+  parameterFile.getOption("particleEnergy",
+    InputFile::Required)>>params.particleEnergy;
+  parameterFile.getOption("outputFile",
+    InputFile::Required)>>params.outputFile;
+  parameterFile.getOption("numberOfSteps",
+    InputFile::Required)>>params.numberOfSteps;
+  parameterFile.getOption("printEverynSteps",
+    InputFile::Required)>>params.printEverynSteps;
+%! codeblockend
 \end{lstlisting}
+\end{comment}
 In the main function, after declaring the System \texttt{sys}, we read in all
 the parameter values with
 \begin{lstlisting}
+%! codeblock: loadParameters
+  %! codeinsert: loadParameterMsg
   InputParameters simParams = readParameterFile(sys);
-%!
+%! codeblockend
 \end{lstlisting}
 Whenever we need a parameter value in the remaining code, we just assign it from
 the \texttt{simParams} data structure, as in
@@ -727,6 +771,68 @@ the \texttt{simParams} data structure, as in
 and so on.
 
 \section{Logging}
+
+In his ``At Home in the Universe'', John Archibald Wheeler defined an expert as
+``someone who knows from his own bitter experience almost all possible mistakes
+in his field'' and therefore encouraged researchers to learn how to quickly make
+mistakes and fix them. If you intend to write code, accept that you will often
+spend more time looking for mistakes than it took you to write the code in the
+first place.
+
+The first sign of a problem with your code comes when it doesn't compile. Here 
+the compiler error messages and	warnings will help you pinpoint	the mistake. But 
+many times, the program will compile fine but do something different from what 
+you expected. Before you learn how to use debuggers, you will probably just ask 
+the program to print out more information, so that you can track what goes on in 
+the different steps.
+
+We \textit{could} use \texttt{cout} to print this information onto the screen, 
+but UAMMD includes a convenient function that allows you to print messages with 
+different priorities. To inform the user that the program will read the 
+parameter file, write
+\begin{lstlisting}
+%! codeblock: loadParameterMsg
+  sys->log<System::MESSAGE>("Reading parameters from data.main.");
+%! codeblockend
+\end{lstlisting}
+just before you call the \texttt{readParameterFile} function in \texttt{main}.
+
+Suppose the \texttt{data.main} file did not exist. Then we would issue a warning
+saying that the program has created this file with a set of default values.
+\begin{lstlisting}
+%! codeblock: defaultFileMsg
+    sys->log<System::WARNING>("File data.main not found. Creating file with default values.");
+%! codeblockend
+\end{lstlisting}
+What if the operating system did not allow the program to write to the directory
+and the file was not created? That would prove catastrophic for the subsequent
+program. A \textit{CRITICAL} error message would explain the error and stop the
+program. The exclamation mark in C++ works as a negation, so
+\begin{lstlisting}
+%! codeblock: fileErrorMsg
+    if(!parameterFile.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
+      exit(-1);
+    }
+%! codeblockend
+\end{lstlisting}
+would exit the program if the file was not open. The UAMMD System provides a
+whole set of message types listed here in decreasing order of priority:
+\texttt{CRITICAL, ERROR, EXCEPTION, WARNING, MESSAGE, STDERR, STDOUT,
+DEBUG, DEBUG1, DEBUG2, DEBUG3, DEBUG4, DEBUG5, DEBUG6, DEBUG7}. By default all
+messages with priority above DEBUG will be printed.
+
+Use the different levels of debugging to specify what your code is doing at 
+different points. The compiler will ignore these messages, but whenever you have 
+to deal with a problem, you can activate them. Add the option 
+\texttt{-DMAXLOGLEVEL=7} to the command-line options when you compile, and your 
+program will now print DEBUG messages. If you increase the level to 8, you will 
+also get the DEBUG1 messages. You get the idea.
+
+In a single chapter, we have converted a ``Hello, World!'' program into a 
+fully-functional Lennard-Jones fluid simulator. If you enjoyed the recipe and
+would like to enlarge your repertoire of cooking utensils, head on to chapter 2,
+where we will encounter new interactions, such as bonds and external fields.
 
 \begin{comment}
 List of programs written in this chapter:
@@ -743,9 +849,9 @@ List of programs written in this chapter:
 %! codeblockend
 
 Final version of the Lennard-Jones simulation program:
-%! codefile: superLennard-Jones.cu
+%! codefile: code/superLennard-Jones.cu
 # include "uammd.cuh"
-# include "utils/InputFile.cuh"
+# include "utils/InputFile.h"
 # include "utils/InitialConditions.cuh"
 # include "Interactor/Potential/Potential.cuh"
 # include "Interactor/NeighbourList/CellList.cuh"
@@ -756,53 +862,59 @@ using namespace uammd;
 using std::make_shared;
 using std::endl;
 
+%! codeinsert: parameterList
+
+%! codeinsert: readParameterFile
+
 int main(int argc, char *argv[]){
 
   auto sys = make_shared<System>(argc, argv);
 
-  {
-    InputFile parameterFile("data.main", sys);
-    parameterFile.getOption("numberOfParticles",
-      InputFile::Required)>>simParams.numberOfParticles;
-    parameterFile.getOption("boxSize",
-      InputFile::Required)>>simParams.L;
-    parameterFile.getOption("timeStep",
-      InputFile::Required)>>simParams.dt;
-    parameterFile.getOption("particleEnergy",
-      InputFile::Required)>>simParams.particleEnergy;
-    parameterFile.getOption("epsilon",
-      InputFile::Required)>>simParams.epsilon;
-    parameterFile.getOption("sigma",
-      InputFile::Required)>>simParams.sigma;
-    parameterFile.getOption("cutOff",
-      InputFile::Required)>>simParams.cutOff;
-    parameterFile.getOption("outputFile",
-      InputFile::Required)>>simParams.outputFile;
-    parameterFile.getOption("numberOfSteps",
-      InputFile::Required)>>simParams.numberOfSteps;
-    parameterFile.getOption("printEverynSteps",
-      InputFile::Required)>>simParams.printEverynSteps;
-  }
+  %! codeinsert: loadParameters
 
   int numberOfParticles = simParams.numberOfParticles;
   auto particles
     = make_shared<ParticleData>(numberOfParticles, sys);
 
-  %! codeinsert: latticeInitialConditions
+  real L = simParams.L;
 
-  %! codeinsert: VerletParams
+  %! codeinsert: LJsimulationBox
+  {
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
+
+    auto initial =  initLattice(box.boxSize,
+                                numberOfParticles, sc);
+
+    std::copy(initial.begin(), initial.end(), position.begin());
+  }
+
+  using Verlet = VerletNVE::VerletNVE;
+  Verlet::Parameters VerletParams;
+  VerletParams.dt = simParams.dt;
+  VerletParams.initVelocities=true;
+  VerletParams.energy = simParams.particleEnergy;
 
   %! codeinsert: Verlet
 
-  %! codeinsert: Lennard-JonesPotential
+  auto LJPotential = make_shared<Potential::LJ>(sys);
+  {
+    Potential::LJ::InputPairParameters LJParams;
+    LJParams.epsilon = simParams.epsilon;
+    LJParams.sigma = simParams.sigma;
+    LJParams.cutOff = simParams.cutOff;
+    LJParams.shift = false;
+    LJPotential->setPotParameters(0, 0, LJParams);
+  }
 
   %! codeinsert: Lennard-JonesInteraction
 
-  std::string outputFile = "Lennard-Jones.dat";
+  std::string outputFile = simParams.outputFile;
   std::ofstream out(outputFile);
 
-  int numberOfSteps = 1000;
-  int printEverynSteps = 100;
+  int numberOfSteps = simParams.numberOfSteps;
+  int printEverynSteps = simParams.printEverynSteps;
 
   %! codeinsert: integration
 
