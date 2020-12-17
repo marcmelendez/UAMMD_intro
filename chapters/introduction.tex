@@ -40,14 +40,14 @@ understand the gist of the code boxes. That should be enough for experimenting
 by tweaking the examples given here. You will, of course, eventually have to 
 learn some CUDA if you wish to write advanced UAMMD programs, but there is a 
 whole sea of free online resources out there. Instead of sailing out, it might 
-be a good idea to understand what you want to know first (if your desires draw 
-you out to sea, by all means go forth and sail!).
+be a good idea to understand what you want to know first (but if your desires 
+draw you out to sea, by all means go forth and sail!).
 
 Below, I have copied the iconic ``Hello, World'' program, written for C++. It
 begins by including input/output functionality by adding the \texttt{iostream}
 standard library to our program (\texttt{iostream} contains \texttt{cout} and
-texttt{endl} used a few lines down). We then specify that we will be using
-the standard (txttt{std}) versions of \texttt{cout} and \texttt{endl}, which
+\texttt{endl} used a few lines down). We then specify that we will be using
+the standard (\texttt{std}) versions of \texttt{cout} and \texttt{endl}, which
 saves us from having to write \texttt{std::cout} or \texttt{std::endl} each
 time we want to mention them.
 \begin{lstlisting}
@@ -225,20 +225,21 @@ velocity in small increments of size \texttt{dt}. At every step, we change the
 velocity by adding a change of $-9.8\ dt$ in the vertical direction and then
 update the position by moving the ball to a new position using its current
 velocity. Given $\mathbf{r}(n)$ and $\mathbf{v}(n)$, the position and velocity
-at time step number $n$, we calculate the new position and velocity as
+at time step number $n$, we calculate the new position and velocity at time
+$n + 1$ as
 \begin{align*}
-  \mathbf{r}(n) & = \mathbf{r}(n) + \mathbf{v}(n)\ dt, \\
-  \mathbf{v}(n) & = \mathbf{v}(n) + \mathbf{g}\ dt.
+  \mathbf{r}(n + 1) & = \mathbf{r}(n) + \mathbf{v}(n)\ dt, \\
+  \mathbf{v}(n + 1) & = \mathbf{v}(n) + \mathbf{g}\ dt.
 \end{align*}
 This simple numerical integration algorithm is known as the \textit{Euler
 scheme}.
 
-In our code, we will have to track the horizontal and vertical components of
-the position and velocity, which we store in the two-dimensional arrays
-\texttt{r[2]} and \texttt{v[2]}: \texttt{r[0]} will represent the horizontal
-coordinate and \texttt{r[1]} the vertical component, and similarly for
-\texttt{v[0]} and \texttt{v[1]}. Next, we will indicate the number of steps to
-calculate, the size of the time step and how often to print out the position.
+In our code, we will have to track the horizontal and vertical components of the 
+position and velocity, which we store in the two-dimensional arrays \texttt{r} 
+and \texttt{v}: \texttt{r[0]} will represent the horizontal coordinate and 
+\texttt{r[1]} the vertical component, and similarly for \texttt{v[0]} and 
+\texttt{v[1]}. Next, we will indicate the number of steps to calculate, the size 
+of the time step and how often to print out the position.
 \begin{lstlisting}
 %! codefile: code/rubberBall.cpp
 # include <iostream>

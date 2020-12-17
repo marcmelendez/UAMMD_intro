@@ -27,11 +27,11 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
 {
   if(!std::ifstream("data.main").good()) {
     sys->log<System::WARNING>("File data.main not found. Creating file with default values.");
-    if(!parameterFile.is_open()) {
+    std::ofstream defaultParameters("data.main");
+    if(!defaultParameters.is_open()) {
       sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
       exit(-1);
     }
-    std::ofstream defaultParameters("data.main");
     defaultParameters<<"numberOfParticles 100000"<<endl;
     defaultParameters<<"boxSize 128"<<endl;
     defaultParameters<<"timeStep 0.01"<<endl;

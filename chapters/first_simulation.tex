@@ -114,7 +114,7 @@ values.
 \begin{lstlisting}
     auto velocities
       = particles->getVel(access::location::cpu,
-                          access::mode::write);
+                          access::mode::read);
 %!
 \end{lstlisting}
 Other particle properties work similarly: use \texttt{getMass},
@@ -166,10 +166,11 @@ We need some more functionality, which we import into our project with
 \end{lstlisting}
 at the beginning of the file, after including the \texttt{uammd.cuh} header 
 file. Now we can use the Verlet scheme to integrate the equations of motion, but 
-we need to set the values of some parameters first. \texttt{dt} sets the size of 
-the integration time step. In the introduction, we used Euler's algorithm to 
-carry out the integration, but Verlet came up with a very popular method which 
-improved the accuracy of integration at very little extra computational cost.
+we need to set the values of some parameters first. The \texttt{dt} element sets 
+the size of the integration time step. In the introduction, we used Euler's 
+algorithm to carry out the integration, but Verlet came up with a very popular 
+method which improved the accuracy of integration at very little extra 
+computational cost. We will choose his method here.
 \begin{lstlisting}
 %! codeblock: VerletParams
   using Verlet = VerletNVE::VerletNVE;
@@ -396,8 +397,8 @@ cubic''. Other options are face-centred cubic (\texttt{fcc}), body-centred cubic
 (\texttt{dia}) and the two-dimensional triangular (\texttt{tri}) and square
 (\texttt{sq}) lattices.
 
-Remember to reset the periodicity and size of the box in the $z$ direction:
-\texttt{periodicityZ = true}.
+Remember to reset the periodicity (\texttt{periodicityZ = true}) and size of the
+box in the $z$ direction.
 \begin{comment}
 \begin{lstlisting}
 %! codeblock: LJsimulationBox
@@ -411,8 +412,8 @@ Remember to reset the periodicity and size of the box in the $z$ direction:
 \end{comment}
 
 Concerning the velocities, the ideal gas example picked random directions and set
-the speeds in such a way that you got the energy per particle set among the
-parameters. This choice should be fine for our present example, but perhaps you
+the speeds in such a way that you got the selected energy per particle.
+This choice should be fine for our present example, but perhaps you
 would later like to experiment imposing an initial sine-shaped velocity profile.
 In that event, you could set \texttt{VerletParams.initVelocities} to false and
 then write something like this:
@@ -629,7 +630,7 @@ environment.
 \begin{figure}
   \includegraphics[width = \textwidth]{figures/Lennard-Jones.rdf.eps}
   \caption{\label{Lennard-Jones.rdf}Radial distribution function $g(r)$ for an
-           ideal gas (\textit{left}) and a Lennar-Jones fluid (\textit{right}).
+           ideal gas (\textit{left}) and a Lennard-Jones fluid (\textit{right}).
            The dashed line represents the theoretical $g(r) = 1$ for an ideal
            gas. Points (with errorbars) present the estimation of $g(r)$
            obtained from the positions in the final step of the simulation
@@ -688,8 +689,8 @@ create it containing some safe default values.
 %! codeblock: defaultFile
   if(!std::ifstream("data.main").good()) {
     %! codeinsert: defaultFileMsg
-    %! codeinsert: fileErrorMsg
     std::ofstream defaultParameters("data.main");
+    %! codeinsert: fileErrorMsg
     defaultParameters<<"numberOfParticles 100000"<<endl;
     defaultParameters<<"boxSize 128"<<endl;
     defaultParameters<<"timeStep 0.01"<<endl;
@@ -781,7 +782,7 @@ first place.
 
 The first sign of a problem with your code comes when it doesn't compile. Here 
 the compiler error messages and	warnings will help you pinpoint	the mistake. But 
-many times, the program will compile fine but do something different from what 
+many times, the program will compile fine and do something different from what 
 you expected. Before you learn how to use debuggers, you will probably just ask 
 the program to print out more information, so that you can track what goes on in 
 the different steps.
@@ -810,7 +811,7 @@ program. A \textit{CRITICAL} error message would explain the error and stop the
 program. The exclamation mark in C++ works as a negation, so
 \begin{lstlisting}
 %! codeblock: fileErrorMsg
-    if(!parameterFile.is_open()) {
+    if(!defaultParameters.is_open()) {
       sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
       exit(-1);
     }
@@ -818,9 +819,11 @@ program. The exclamation mark in C++ works as a negation, so
 \end{lstlisting}
 would exit the program if the file was not open. The UAMMD System provides a
 whole set of message types listed here in decreasing order of priority:
-\texttt{CRITICAL, ERROR, EXCEPTION, WARNING, MESSAGE, STDERR, STDOUT,
-DEBUG, DEBUG1, DEBUG2, DEBUG3, DEBUG4, DEBUG5, DEBUG6, DEBUG7}. By default all
-messages with priority above DEBUG will be printed.
+\texttt{CRITICAL}, \texttt{ERROR}, \texttt{EXCEPTION}, \texttt{WARNING},
+\texttt{MESSAGE}, \texttt{STDERR}, \texttt{STDOUT}, \texttt{DEBUG},
+\texttt{DEBUG1}, \texttt{DEBUG2}, \texttt{DEBUG3}, \texttt{DEBUG4},
+\texttt{DEBUG5}, \texttt{DEBUG6}, \texttt{DEBUG7}. By default all messages
+with priority above DEBUG will be printed.
 
 Use the different levels of debugging to specify what your code is doing at 
 different points. The compiler will ignore these messages, but whenever you have 
