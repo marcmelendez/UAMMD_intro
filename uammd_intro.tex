@@ -6,11 +6,15 @@
 
 \documentclass[a4paper,12pt,openany,hidelinks]{book}
 
+\usepackage[hmarginratio=1:1]{geometry}
 \usepackage{graphicx}
+\usepackage{eso-pic}
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{afterpage}
+\usepackage{pagecolor}
+\usepackage{picture}
 \usepackage{comment}
 \usepackage{listings}
 \lstset{language = C++,
@@ -36,6 +40,44 @@
 \begin{document}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  Head  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% Cover %%%
+
+\thispagestyle{empty}
+\newpagecolor{black}\afterpage{\restorepagecolor}
+
+\AddToShipoutPicture*{
+  \put(.5\paperwidth,.5\paperheight) {
+    \makebox(0,0) {
+      \includegraphics[width = 0.9 \paperwidth, keepaspectratio]{figures/uammd_intro_cover.eps}
+    }
+  }
+}
+
+\begin{center}
+  {\color{white}
+    \resizebox{0.8 \linewidth}{!}{\textbf{A Painless Introduction to}}
+
+    \vspace{.5cm}
+
+    \resizebox{\linewidth}{!}{\textbf{Programming UAMMD Modules}}
+  }
+\end{center}
+
+\vspace{1.75cm}
+
+\begin{center}
+  {\huge {\color{white}Marc Mel\'endez Schofield}}
+\end{center}
+
+\vfill
+
+\clearpage
+
+\thispagestyle{empty}
+
+\newgeometry{hmarginratio=2:3}
+
 
 %%% Title page %%%
 
