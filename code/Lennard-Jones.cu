@@ -19,6 +19,11 @@ int main(int argc, char *argv[]){
 
   real L = 128;
 
+  Box box(make_real3(L, L, L));
+  bool periodicityX = true, periodicityY = true,
+       periodicityZ = true;
+  box.setPeriodicity(periodicityX, periodicityY,
+                     periodicityZ);
   {
     auto position
       = particles->getPos(access::location::cpu,
@@ -36,11 +41,8 @@ int main(int argc, char *argv[]){
   VerletParams.initVelocities=true;
   VerletParams.energy = 1.0;
 
-  using Verlet = VerletNVE::VerletNVE;
-  Verlet::Parameters VerletParams;
-  VerletParams.dt = 0.01;
-  VerletParams.initVelocities=true;
-  VerletParams.energy = 1.0;
+  auto integrator
+    = make_shared<Verlet>(particles, sys, VerletParams);
 
   auto LJPotential = make_shared<Potential::LJ>(sys);
   {
@@ -77,6 +79,14 @@ int main(int argc, char *argv[]){
     if(printEverynSteps > 0
        && step % printEverynSteps == 1) {
       /* ... Output particle positions ... */
+      auto position
+        = particles->getPos(access::location::cpu,
+                            access::mode::read);
+      const int * index = particles->getIdOrderedIndices(access::location::cpu);
+
+      out<<endl;
+      for(int id = 0; id < numberOfParticles; ++id)
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
     }
   }
 
