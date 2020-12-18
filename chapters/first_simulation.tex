@@ -173,7 +173,7 @@ method which improved the accuracy of integration at very little extra
 computational cost. We will choose his method here.
 \begin{lstlisting}
 %! codeblock: VerletParams
-  using Verlet = VerletNVE::VerletNVE;
+  using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = 0.01;
   VerletParams.initVelocities=true;
@@ -902,7 +902,7 @@ int main(int argc, char *argv[]){
     std::copy(initial.begin(), initial.end(), position.begin());
   }
 
-  using Verlet = VerletNVE::VerletNVE;
+  using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = simParams.dt;
   VerletParams.initVelocities=true;
