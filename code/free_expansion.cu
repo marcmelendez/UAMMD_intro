@@ -15,11 +15,6 @@ int main(int argc, char *argv[]){
     = make_shared<ParticleData>(numberOfParticles, sys);
 
   real L = 128;
-  Box box(make_real3(L, L, std::numeric_limits<real>::infinity()));
-  bool periodicityX = true, periodicityY = true,
-       periodicityZ = false;
-  box.setPeriodicity(periodicityX, periodicityY,
-                     periodicityZ);
 
   {
     auto position
@@ -37,8 +32,11 @@ int main(int argc, char *argv[]){
   VerletParams.initVelocities=true;
   VerletParams.energy = 1.0;
 
-  auto integrator
-    = make_shared<Verlet>(particles, sys, VerletParams);
+  using Verlet = VerletNVE::VerletNVE;
+  Verlet::Parameters VerletParams;
+  VerletParams.dt = 0.01;
+  VerletParams.initVelocities=true;
+  VerletParams.energy = 1.0;
 
   std::string outputFile = "free_expansion.dat";
   std::ofstream out(outputFile);
@@ -52,14 +50,6 @@ int main(int argc, char *argv[]){
     if(printEverynSteps > 0
        && step % printEverynSteps == 1) {
       /* ... Output particle positions ... */
-      auto position
-        = particles->getPos(access::location::cpu,
-                            access::mode::read);
-      const int * index = particles->getIdOrderedIndices(access::location::cpu);
-
-      out<<endl;
-      for(int id = 0; id < numberOfParticles; ++id)
-        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
     }
   }
 
