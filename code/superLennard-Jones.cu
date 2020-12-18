@@ -103,7 +103,7 @@ int main(int argc, char *argv[]){
     std::copy(initial.begin(), initial.end(), position.begin());
   }
 
-  using Verlet = VerletNVE;
+  using Verlet = VerletNVE::VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = simParams.dt;
   VerletParams.initVelocities=true;
