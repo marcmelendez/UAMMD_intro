@@ -31,7 +31,7 @@ int main(int argc, char *argv[]){
         = make_real4(sys->rng().uniform3(-0.5, 0.5), 0)*L;
   }
 
-  using Verlet = VerletNVE::VerletNVE;
+  using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = 0.01;
   VerletParams.initVelocities=true;

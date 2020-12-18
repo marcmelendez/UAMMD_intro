@@ -211,7 +211,7 @@ To advance the system in time, use the integrator's \texttt{forwardTime} method.
     integrator->forwardTime();
 
     if(printEverynSteps > 0
-       && step % printEverynSteps == 1) {
+       and step % printEverynSteps == 1) {
       /* ... Output particle positions ... */
       %! codeinsert: printPositions
     }
@@ -817,10 +817,10 @@ saying that the program has created this file with a set of default values.
 What if the operating system did not allow the program to write to the directory
 and the file was not created? That would prove catastrophic for the subsequent
 program. A \textit{CRITICAL} error message would explain the error and stop the
-program. The exclamation mark in C++ works as a negation, so
+program.
 \begin{lstlisting}
 %! codeblock: fileErrorMsg
-    if(!defaultParameters.is_open()) {
+    if(not defaultParameters.is_open()) {
       sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
       exit(-1);
     }
