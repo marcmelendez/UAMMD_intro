@@ -35,7 +35,7 @@ int main(int argc, char *argv[]){
     std::copy(initial.begin(), initial.end(), position.begin());
   }
 
-  using Verlet = VerletNVE::VerletNVE;
+  using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = 0.01;
   VerletParams.initVelocities=true;
