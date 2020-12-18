@@ -28,7 +28,7 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
   if(!std::ifstream("data.main").good()) {
     sys->log<System::WARNING>("File data.main not found. Creating file with default values.");
     std::ofstream defaultParameters("data.main");
-    if(!defaultParameters.is_open()) {
+    if(not defaultParameters.is_open()) {
       sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
       exit(-1);
     }
@@ -145,7 +145,7 @@ int main(int argc, char *argv[]){
     integrator->forwardTime();
 
     if(printEverynSteps > 0
-       && step % printEverynSteps == 1) {
+       and step % printEverynSteps == 1) {
       /* ... Output particle positions ... */
       auto position
         = particles->getPos(access::location::cpu,

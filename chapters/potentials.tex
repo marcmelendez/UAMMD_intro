@@ -1,3 +1,12 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                                                                              %
+%            A Painless Introduction to Programming UAMMD Modules              %
+%                    Chapter 2: Unleash your own potential                     %
+%                                                                              %
+%                          Marc Meléndez Schofield                             %
+%                                                                              %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 You can only have so much fun playing with a Lennard-Jones simulation. Changing
 the parameter values and then looking for differences in your plots gets old
 fast. If you have made it this far, you want more. You imagine molecules, or
@@ -19,11 +28,112 @@ potential function for this bond, then, equals
 \end{equation*}
 where the spring constant $k$ quantifies the bond rigidity.
 
-Including bonds presents no difficulties from the point of view of UAMMD code,
-as the code resembles the lines we wrote for the Lennard-Jones interaction.
+Take a string of one hundred particles as our explanatory device. For
+simplicity, place them all in a straight line and initially at rest.
 \begin{lstlisting}
+%! codeblock: ropeInitialConditions
+  int numberOfParticles = 100;
+  auto particles
+    = make_shared<ParticleData>(numberOfParticles, sys);
+
+  {
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
+    auto velocity
+      = particles->getVel(access::location::cpu,
+                          access::mode::write);
+
+    for(int i = 0; i < 100; ++i) {
+      position[i].x = i*0.01;
+      position[i].y = position[i].z = position[i].w = 0;
+      velocity[i].x = velocity[i].y = velocity[i].z = 0;
+    }
+  }
+%! codeblockend
 \end{lstlisting}
-The difficulty arises from the need to specify which particles are linked.
+
+UAMMD reads bond information in from an external file. Let me first explain the
+format of this plain text bond file. It should look something like this:
+\begin{lstlisting}
+99
+0 1 1000.0 0.01
+1 2 1000.0 0.01
+2 3 1000.0 0.01
+3 4 1000.0 0.01
+    . . .
+\end{lstlisting}
+
+and so on. The file begins with the number of bonds ($99$) followed by a row for
+each bond presenting $i$, $j$, $k$ and $r_0$, that is, the particle ID numbers,
+the bond spring constant and the equilibrium distance. Hence, the next line
+links particles $0$ and $1$ with a bond of $k = 1000.0$ and $r_0 = 0.01$. After
+that, we get the values for the bond connecting particles $1$ and $2$. Even
+though I have chosen identical values of $k$ and $r_0$ for all the bonds in this
+example, you can of course make them all different if you like.
+
+In addition to linking particles, you can attach them to fixed points in space.
+We will pin particle $0$ to the origin of coordinates. After the previous list
+of bonds, we must include the number of fixed bonds (only $1$ in our case). The
+format for these is simply $i$, $x$, $y$, $z$, $k$, $r_0$, meaning, particle ID,
+position in space $(x, y, z)$, spring constant and equilibrium distance. So in
+our example, the bond file should end with:
+\begin{lstlisting}
+1
+0 0 0 0 1000.0 0.0
+\end{lstlisting}
+(particle $0$ attached to the origin $(0, 0, 0)$ with $k = 1000.0$ and
+$r_0 = 0$).
+
+We will make the program write the bond information so that we don't have to.
+\begin{lstlisting}
+%! codeblock: ropeBondFile
+  {
+    std::ofstream bondInfo("data.bonds");
+    if(not bondInfo.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.bonds file. Halting program.");
+      exit(-1);
+    }
+
+    bondInfo<<(numberOfParticles - 1)<<endl;
+    for(int i = 0; i < numberOfParticles - 1; ++i) {
+      bondInfo<<i<<" "<<(i + 1)<<" 1000.0 0.01"<<endl;
+    }
+    bondInfo<<"1"<<endl;
+    bondInfo<<"0 0 0 0 1000.0 0.0"<<endl;
+  }
+%! codeblockend
+\end{lstlisting}
+
+Including the bonds presents no difficulties from the point of view of UAMMD
+code, as the code resembles the lines we wrote for the Lennard-Jones
+interaction. You insert the customary include at the top,
+\begin{lstlisting}
+# include "Interactor/BondedForces.cuh"
+\end{lstlisting}
+define the intereaction parameters to create the ``interactor'',
+\begin{lstlisting}
+%! codeblock: ropeBondInteractor
+  {
+    using HarmonicBonds = BondedForces<BondType::Harmonic>;
+    HarmonicBonds::Parameters bondParameters;
+    bondParameters.file = "data.bonds";
+    auto bonds = make_shared<HarmonicBonds>(particles, sys, bondParameters);
+%! codeblockend
+\end{lstlisting}
+and then add the bond interaction to the integrator.
+\begin{lstlisting}
+%! codeblock: ropeAddInteractor
+    integrator->addInteractor(bonds);
+  }
+%! codeblockend
+\end{lstlisting}
+
+A straight line of linked particles does not make for much of an illustration,
+until you realise that you can activate gravity and simulate a hanging rope.
+
+\section{External fields}
+
 
 \section{Alternative types of bonds}
 
@@ -34,8 +144,6 @@ Fixed bonds
 Angular bonds
 
 Torsional bonds
-
-\section{External fields}
 
 \section{Other potentials (DPD, SPH)}
 
