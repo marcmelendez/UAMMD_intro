@@ -1,4 +1,29 @@
+You can only have so much fun playing with a Lennard-Jones simulation. Changing
+the parameter values and then looking for differences in your plots gets old
+fast. If you have made it this far, you want more. You imagine molecules, or
+larger structures. Perhaps you would like to simulate billowing smoke, sloshing
+water, or planets orbiting a star. All in good time.
+
+Whatever your final aim, you need new interactions, and this chapter contains a
+good collection of them.
+
 \section{Harmonic bonds}
+
+The simplest permanent link between particles in UAMMD has to be the harmonic
+bond. Think of it as an invisible linear spring connecting two particles. As
+long as they remain at the equilibrium distance $r_0$, they exert no force on
+each other, but when you stretch their separation $r$ they pull back. The
+potential function for this bond, then, equals
+\begin{equation*}
+  V(r) = \frac{1}{2}\ k\ (r - r_0)^2,
+\end{equation*}
+where the spring constant $k$ quantifies the bond rigidity.
+
+Including bonds presents no difficulties from the point of view of UAMMD code,
+as the code resembles the lines we wrote for the Lennard-Jones interaction.
+\begin{lstlisting}
+\end{lstlisting}
+The difficulty arises from the need to specify which particles are linked.
 
 \section{Alternative types of bonds}
 
