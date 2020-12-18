@@ -10,8 +10,10 @@
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage[rgb]{xcolor}
 \usepackage{afterpage}
 \usepackage{comment}
+\usepackage{eso-pic}
 \usepackage{listings}
 \lstset{language = C++,
         frame = single,
@@ -36,6 +38,32 @@
 \begin{document}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  Head  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% Cover %%%
+\thispagestyle{empty}
+\AddToShipoutPicture*{
+  \AtPageLowerLeft{
+    \includegraphics[width = 0.9 \paperwidth,keepaspectratio]{figures/UAMMD_intro_cover.eps}
+  }
+}
+
+\begin{center}
+  \resizebox{0.3 \linewidth}{!}{\itshape {\color{white}
+         A Painless Introduction to \\
+         Programming UAMMD Modules}}
+  \end{center}
+
+  \vspace{1cm}
+
+  \begin{center}
+  {\huge {\color{white}Marc Mel\'endez Schofield}}
+\end{center}
+
+\vfill
+
+\clearpage
+
+\thispagestyle{empty}
 
 %%% Title page %%%
 
