@@ -9,7 +9,7 @@
 
 You can only have so much fun playing with a Lennard-Jones simulation. Changing
 the parameter values and then looking for differences in your plots gets old
-fast. If you have made it this far, you want more. You imagine molecules, or
+soon. If you have made it this far, you want more. You imagine molecules, or
 larger structures. Perhaps you would like to simulate billowing smoke, sloshing
 water, or planets orbiting a star. All in good time.
 
@@ -21,18 +21,18 @@ good collection of them.
 The simplest permanent link between particles in UAMMD has to be the harmonic
 bond. Think of it as an invisible linear spring connecting two particles. As
 long as they remain at the equilibrium distance $r_0$, they exert no force on
-each other, but when you stretch their separation $r$ they pull back. The
+each other, but when you stretch their separation $r$, they pull back. The
 potential function for this bond, then, equals
 \begin{equation*}
   V(r) = \frac{1}{2}\ k\ (r - r_0)^2,
 \end{equation*}
 where the spring constant $k$ quantifies the bond rigidity.
 
-Take a string of one hundred particles as our explanatory device. For
-simplicity, place them all in a straight line and initially at rest.
+Take a string of one hundred and one particles as our explanatory device. We
+will place them all on a slight curve line and initially at rest.
 \begin{lstlisting}
-%! codeblock: ropeInitialConditions
-  int numberOfParticles = 100;
+%! codeblock: stringInitialConditions
+  int numberOfParticles = 101;
   auto particles
     = make_shared<ParticleData>(numberOfParticles, sys);
 
@@ -44,9 +44,13 @@ simplicity, place them all in a straight line and initially at rest.
       = particles->getVel(access::location::cpu,
                           access::mode::write);
 
-    for(int i = 0; i < 100; ++i) {
-      position[i].x = i*0.01;
-      position[i].y = position[i].z = position[i].w = 0;
+    real amplitude = 0.1;
+    real stringlength = 1.0;
+    int modenum = 1;
+    for(int i = 0; i < numberOfParticles; ++i) {
+      position[i].x = i*(stringlength/(numberOfParticles - 1));
+      position[i].y = amplitude*sin(modenum*M_PI*position[i].x);
+      position[i].z = position[i].w = 0;
       velocity[i].x = velocity[i].y = velocity[i].z = 0;
     }
   }
@@ -56,7 +60,7 @@ simplicity, place them all in a straight line and initially at rest.
 UAMMD reads bond information in from an external file. Let me first explain the
 format of this plain text bond file. It should look something like this:
 \begin{lstlisting}
-99
+100
 0 1 1000.0 0.01
 1 2 1000.0 0.01
 2 3 1000.0 0.01
@@ -64,30 +68,31 @@ format of this plain text bond file. It should look something like this:
     . . .
 \end{lstlisting}
 
-and so on. The file begins with the number of bonds ($99$) followed by a row for
-each bond presenting $i$, $j$, $k$ and $r_0$, that is, the particle ID numbers,
-the bond spring constant and the equilibrium distance. Hence, the next line
-links particles $0$ and $1$ with a bond of $k = 1000.0$ and $r_0 = 0.01$. After
-that, we get the values for the bond connecting particles $1$ and $2$. Even
-though I have chosen identical values of $k$ and $r_0$ for all the bonds in this
-example, you can of course make them all different if you like.
+and so on. The file begins with the number of bonds ($100$) followed by a row
+for each bond presenting $i$, $j$, $k$ and $r_0$, that is, the particle ID
+numbers, the bond spring constant and the equilibrium distance. Hence, the next
+line links particles $0$ and $1$ with a bond of $k = 1000.0$ and $r_0 = 0.01$.
+After that, we get the values for the bond connecting particles $1$ and $2$.
+Even though I have chosen identical values of $k$ and $r_0$ for all the bonds in
+this example, you can of course make them all different if you like.
 
 In addition to linking particles, you can attach them to fixed points in space.
-We will pin particle $0$ to the origin of coordinates. After the previous list
-of bonds, we must include the number of fixed bonds (only $1$ in our case). The
-format for these is simply $i$, $x$, $y$, $z$, $k$, $r_0$, meaning, particle ID,
-position in space $(x, y, z)$, spring constant and equilibrium distance. So in
-our example, the bond file should end with:
+We will pin particle $0$ to the origin of coordinates and particle $100$ to point
+$(1, 0, 0)$. When you let go of the string of particles it should vibrate. After
+the previous list of bonds, we must include the number of fixed bonds (only $2$
+in our case). The format for these is simply $i$, $x$, $y$, $z$, $k$, $r_0$,
+meaning: particle ID, position in space $(x, y, z)$, spring constant and
+equilibrium distance. So in our example, the bond file should end with:
 \begin{lstlisting}
-1
+2
 0 0 0 0 1000.0 0.0
+100 1 0 0 1000.0 0.0
+%!
 \end{lstlisting}
-(particle $0$ attached to the origin $(0, 0, 0)$ with $k = 1000.0$ and
-$r_0 = 0$).
 
 We will make the program write the bond information so that we don't have to.
 \begin{lstlisting}
-%! codeblock: ropeBondFile
+%! codeblock: stringBondFile
   {
     std::ofstream bondInfo("data.bonds");
     if(not bondInfo.is_open()) {
@@ -101,6 +106,7 @@ We will make the program write the bond information so that we don't have to.
     }
     bondInfo<<"1"<<endl;
     bondInfo<<"0 0 0 0 1000.0 0.0"<<endl;
+    bondInfo<<"100 1 0 0 1000.0 0.0"<<endl;
   }
 %! codeblockend
 \end{lstlisting}
@@ -110,10 +116,11 @@ code, as the code resembles the lines we wrote for the Lennard-Jones
 interaction. You insert the customary include at the top,
 \begin{lstlisting}
 # include "Interactor/BondedForces.cuh"
+%!
 \end{lstlisting}
 define the intereaction parameters to create the ``interactor'',
 \begin{lstlisting}
-%! codeblock: ropeBondInteractor
+%! codeblock: stringBondInteractor
   {
     using HarmonicBonds = BondedForces<BondType::Harmonic>;
     HarmonicBonds::Parameters bondParameters;
@@ -123,16 +130,57 @@ define the intereaction parameters to create the ``interactor'',
 \end{lstlisting}
 and then add the bond interaction to the integrator.
 \begin{lstlisting}
-%! codeblock: ropeAddInteractor
+%! codeblock: stringAddInteractor
     integrator->addInteractor(bonds);
   }
 %! codeblockend
 \end{lstlisting}
 
-A straight line of linked particles does not make for much of an illustration,
-until you realise that you can activate gravity and simulate a hanging rope.
+\begin{comment}
+Vibrating string simulation code:
+\begin{lstlisting}
+%! codefile: code/vibrating_string.cu
+# include "uammd.cuh"
+# include "utils/InitialConditions.cuh"
+# include "Interactor/BondedForces.cuh"
+# include "Integrator/VerletNVE.cuh"
+
+using namespace uammd;
+using std::make_shared;
+using std::endl;
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  %! codeinsert: stringInitialConditions
+
+  %! codeinsert: VerletParams src: chapters/first_simulation.tex
+
+  %! codeinsert: Verlet src: chapters/first_simulation.tex
+
+  %! codeinsert: stringBondFile
+
+  %! codeinsert: stringBondInteractor
+
+  %! codeinsert: stringAddInteractor
+
+  %! codeinsert: integration src: chapters/first_simulation.tex
+
+  sys->finish();
+
+  return 0;
+}
+%! codeend
+\end{lstlisting}
+\end{comment}
 
 \section{External fields}
+
+A straight line of linked particles does not make for much of an illustration,
+until you realise that you can activate gravity and let go of one of the ends to
+simulate a hanging rope.
+
 
 
 \section{Alternative types of bonds}

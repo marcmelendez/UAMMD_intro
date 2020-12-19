@@ -18,7 +18,7 @@ int main(int argc, char * argv[])
 
   for(int i = 1; i <= 100; ++i) {
     if(printEverynSteps > 0
-       && i % printEverynSteps == 0) {
+       and i % printEverynSteps == 0) {
         cout<<"Iteration: "<<i<<endl;
     }
   }

@@ -50,7 +50,7 @@ int main(int argc, char *argv[]){
     integrator->forwardTime();
 
     if(printEverynSteps > 0
-       && step % printEverynSteps == 1) {
+       and step % printEverynSteps == 1) {
       /* ... Output particle positions ... */
       auto position
         = particles->getPos(access::location::cpu,
