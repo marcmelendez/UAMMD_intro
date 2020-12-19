@@ -104,7 +104,7 @@ We will make the program write the bond information so that we don't have to.
     for(int i = 0; i < numberOfParticles - 1; ++i) {
       bondInfo<<i<<" "<<(i + 1)<<" 1000.0 0.01"<<endl;
     }
-    bondInfo<<"1"<<endl;
+    bondInfo<<"2"<<endl;
     bondInfo<<"0 0 0 0 1000.0 0.0"<<endl;
     bondInfo<<"100 1 0 0 1000.0 0.0"<<endl;
   }
@@ -122,7 +122,7 @@ define the intereaction parameters to create the ``interactor'',
 \begin{lstlisting}
 %! codeblock: stringBondInteractor
   {
-    using HarmonicBonds = BondedForces<BondType::Harmonic>;
+    using HarmonicBonds = BondedForces<BondedType::Harmonic>;
     HarmonicBonds::Parameters bondParameters;
     bondParameters.file = "data.bonds";
     auto bonds = make_shared<HarmonicBonds>(particles, sys, bondParameters);
@@ -139,7 +139,7 @@ and then add the bond interaction to the integrator.
 \begin{comment}
 Vibrating string simulation code:
 \begin{lstlisting}
-%! codefile: code/vibrating_string.cu
+%! codefile: code/vibratingString.cu
 # include "uammd.cuh"
 # include "utils/InitialConditions.cuh"
 # include "Interactor/BondedForces.cuh"
@@ -155,7 +155,10 @@ int main(int argc, char *argv[]){
 
   %! codeinsert: stringInitialConditions
 
-  %! codeinsert: VerletParams src: chapters/first_simulation.tex
+  using Verlet = VerletNVE;
+  Verlet::Parameters VerletParams;
+  VerletParams.dt = 0.001;
+  VerletParams.initVelocities=false;
 
   %! codeinsert: Verlet src: chapters/first_simulation.tex
 
@@ -165,7 +168,27 @@ int main(int argc, char *argv[]){
 
   %! codeinsert: stringAddInteractor
 
-  %! codeinsert: integration src: chapters/first_simulation.tex
+  std::string outputFile = "vibratingString.dat";
+  std::ofstream out(outputFile);
+
+  int numberOfSteps = 20000;
+  int printEverynSteps = 2000;
+
+  for(int step = 0; step < numberOfSteps; ++step) {
+    integrator->forwardTime();
+
+    if(printEverynSteps > 0
+       and step % printEverynSteps == 1) {
+      auto position
+        = particles->getPos(access::location::cpu,
+                            access::mode::read);
+      const int * index = particles->getIdOrderedIndices(access::location::cpu);
+
+      out<<endl;
+      for(int id = 0; id < numberOfParticles; ++id)
+        out<<position[index[id]]<<endl;
+    }
+  }
 
   sys->finish();
 

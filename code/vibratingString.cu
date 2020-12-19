@@ -36,9 +36,8 @@ int main(int argc, char *argv[]){
 
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
-  VerletParams.dt = 0.01;
-  VerletParams.initVelocities=true;
-  VerletParams.energy = 1.0;
+  VerletParams.dt = 0.001;
+  VerletParams.initVelocities=false;
 
   auto integrator
     = make_shared<Verlet>(particles, sys, VerletParams);
@@ -54,13 +53,13 @@ int main(int argc, char *argv[]){
     for(int i = 0; i < numberOfParticles - 1; ++i) {
       bondInfo<<i<<" "<<(i + 1)<<" 1000.0 0.01"<<endl;
     }
-    bondInfo<<"1"<<endl;
+    bondInfo<<"2"<<endl;
     bondInfo<<"0 0 0 0 1000.0 0.0"<<endl;
     bondInfo<<"100 1 0 0 1000.0 0.0"<<endl;
   }
 
   {
-    using HarmonicBonds = BondedForces<BondType::Harmonic>;
+    using HarmonicBonds = BondedForces<BondedType::Harmonic>;
     HarmonicBonds::Parameters bondParameters;
     bondParameters.file = "data.bonds";
     auto bonds = make_shared<HarmonicBonds>(particles, sys, bondParameters);
@@ -68,12 +67,17 @@ int main(int argc, char *argv[]){
     integrator->addInteractor(bonds);
   }
 
+  std::string outputFile = "vibratingString.dat";
+  std::ofstream out(outputFile);
+
+  int numberOfSteps = 20000;
+  int printEverynSteps = 2000;
+
   for(int step = 0; step < numberOfSteps; ++step) {
     integrator->forwardTime();
 
     if(printEverynSteps > 0
        and step % printEverynSteps == 1) {
-      /* ... Output particle positions ... */
       auto position
         = particles->getPos(access::location::cpu,
                             access::mode::read);
@@ -81,7 +85,7 @@ int main(int argc, char *argv[]){
 
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
-        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
+        out<<position[index[id]]<<endl;
     }
   }
 
