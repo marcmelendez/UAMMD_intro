@@ -29,7 +29,8 @@ potential function for this bond, then, equals
 where the spring constant $k$ quantifies the bond rigidity.
 
 Take a string of one hundred and one particles as our explanatory device. We
-will place them all on a slight curve line and initially at rest.
+will line them all up along a curved queue, standing initially at rest.
+\label{stringInitialConditions}
 \begin{lstlisting}
 %! codeblock: stringInitialConditions
   int numberOfParticles = 101;
@@ -67,7 +68,6 @@ format of this plain text bond file. It should look something like this:
 3 4 1000.0 0.01
     . . .
 \end{lstlisting}
-
 and so on. The file begins with the number of bonds ($100$) followed by a row
 for each bond presenting $i$, $j$, $k$ and $r_0$, that is, the particle ID
 numbers, the bond spring constant and the equilibrium distance. Hence, the next
@@ -77,18 +77,20 @@ Even though I have chosen identical values of $k$ and $r_0$ for all the bonds in
 this example, you can of course make them all different if you like.
 
 In addition to linking particles, you can attach them to fixed points in space.
-We will pin particle $0$ to the origin of coordinates and particle $100$ to point
-$(1, 0, 0)$. When you let go of the string of particles it should vibrate. After
-the previous list of bonds, we must include the number of fixed bonds (only $2$
-in our case). The format for these is simply $i$, $x$, $y$, $z$, $k$, $r_0$,
-meaning: particle ID, position in space $(x, y, z)$, spring constant and
-equilibrium distance. So in our example, the bond file should end with:
+We will pin particle $0$ to the origin of coordinates and particle $100$ to
+point $(1, 0, 0)$. After the previous list of bonds, we must include the number
+of fixed bonds (only $2$ in our case). The format for these is simply $i$, $x$,
+$y$, $z$, $k$, $r_0$, meaning: particle ID, position in space $(x, y, z)$,
+spring constant and equilibrium distance. So in our example, the bond file
+should end with:
 \begin{lstlisting}
 2
 0 0 0 0 1000.0 0.0
 100 1 0 0 1000.0 0.0
 %!
 \end{lstlisting}
+With the ends held in place, we have a taut string. As soon as we let go and run
+the simulation, it should vibrate.
 
 We will make the program write the bond information so that we don't have to.
 \begin{lstlisting}
@@ -118,7 +120,7 @@ interaction. You insert the customary include at the top,
 # include "Interactor/BondedForces.cuh"
 %!
 \end{lstlisting}
-define the intereaction parameters to create the ``interactor'',
+define the interaction parameters to create the ``interactor'',
 \begin{lstlisting}
 %! codeblock: stringBondInteractor
   {
@@ -128,12 +130,32 @@ define the intereaction parameters to create the ``interactor'',
     auto bonds = make_shared<HarmonicBonds>(particles, sys, bondParameters);
 %! codeblockend
 \end{lstlisting}
-and then add the bond interaction to the integrator.
+and then add the new bond interaction to the integrator.
 \begin{lstlisting}
 %! codeblock: stringAddInteractor
     integrator->addInteractor(bonds);
   }
 %! codeblockend
+\end{lstlisting}
+
+To replicate the simulation results shown in Figure \ref{vibratingString},
+set the integrator parameters to these values:
+\begin{lstlisting}
+%! codeblock: VerletParameters
+  using Verlet = VerletNVE;
+  Verlet::Parameters VerletParams;
+  VerletParams.dt = 0.001;
+  VerletParams.initVelocities=false;
+%! codeblockend
+\end{lstlisting}
+For the figure, I simulated twenty thousand steps and output the positions every
+two thousand. Because I did not need a simulation box in this case, I eliminated
+the corresponding block of code and changed the output command.
+\begin{lstlisting}
+      out<<endl;
+      for(int id = 0; id < numberOfParticles; ++id)
+        out<<position[index[id]]<<endl;
+%!
 \end{lstlisting}
 
 \begin{comment}
@@ -155,10 +177,7 @@ int main(int argc, char *argv[]){
 
   %! codeinsert: stringInitialConditions
 
-  using Verlet = VerletNVE;
-  Verlet::Parameters VerletParams;
-  VerletParams.dt = 0.001;
-  VerletParams.initVelocities=false;
+  %! codeinsert: VerletParameters
 
   %! codeinsert: Verlet src: chapters/first_simulation.tex
 
@@ -197,6 +216,17 @@ int main(int argc, char *argv[]){
 %! codeend
 \end{lstlisting}
 \end{comment}
+
+\begin{figure}
+  \centering
+  \includegraphics[width = 0.6 \textwidth]{figures/vibratingString.eps}
+  \caption{\label{vibratingSting}A chain of $101$ particles connected with
+           harmonic bonds and ends tethered to fixed points. It (imperfectly)
+           follows the behaviour of the ideal vibrating string. The first four
+           normal modes of vibration were achieved by setting the
+           \texttt{modenum} variable (see page
+           \pageref{stringInitialConditions}) to $n = 1, 2, 3,$ and $4$.}
+\end{figure}
 
 \section{External fields}
 
