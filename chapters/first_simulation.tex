@@ -203,7 +203,7 @@ Leaving their initial random positions, we allow the atoms to drift away. The
 program, we decide, will write the positions to \texttt{free\_expansion.dat}.
 \begin{lstlisting}
 %! codeblock: outputFile
-  std::string outputFile = "free_expansion.dat";
+  std::string outputFile = "freeExpansion.dat";
   std::ofstream out(outputFile);
 
   int numberOfSteps = 1000;
@@ -232,7 +232,7 @@ end of section \ref{physical_system} (page \pageref{particlePositions}).
 
 \begin{comment}
 \begin{lstlisting}
-%! codefile: code/free_expansion.cu
+%! codefile: code/freeExpansion.cu
 # include <iostream>
 # include "uammd.cuh"
 # include "Integrator/VerletNVE.cuh"
@@ -350,12 +350,12 @@ above to \texttt{false} and making the box infinite in that direction
               std::numeric_limits<real>::infinity()));
 %!
 \end{lstlisting}
-Fig. \ref{free_expansion} displays the final state of
+Fig. \ref{freeExpansion} displays the final state of
 the gas as produced by the simulation we have written above.
 
 \begin{figure}
-  \includegraphics[width = \textwidth]{figures/free_expansion.eps}
-  \caption{\label{free_expansion}Free expansion of an ideal gas in the $z$
+  \includegraphics[width = \textwidth]{figures/freeExpansion.eps}
+  \caption{\label{freeExpansion}Free expansion of an ideal gas in the $z$
            direction. The system is periodic along the $xy$ plane. On the left,
            the black dots represent particles that were inside the simulation
            box at the start of the computation, and grey dots represent their
@@ -861,7 +861,7 @@ List of programs written in this chapter:
 %! codeblock: codelist
 * `minimal.cu`: A minimal UAMMD program that only prints a Hello message and
   then exits.
-* `free_expansion.cu`: Ideal gas expanding freely in the vertical direction with
+* `freeExpansion.cu`: Ideal gas expanding freely in the vertical direction with
   periodic boundary conditions in the other two directions.
 * `Lennard-Jones.cu`: Particles in a periodic box interacting through a
   Lennard-Jones potential.

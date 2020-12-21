@@ -40,7 +40,7 @@ int main(int argc, char *argv[]){
   auto integrator
     = make_shared<Verlet>(particles, sys, VerletParams);
 
-  std::string outputFile = "free_expansion.dat";
+  std::string outputFile = "freeExpansion.dat";
   std::ofstream out(outputFile);
 
   int numberOfSteps = 1000;

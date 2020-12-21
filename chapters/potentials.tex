@@ -220,7 +220,7 @@ int main(int argc, char *argv[]){
 \begin{figure}
   \centering
   \includegraphics[width = 0.6 \textwidth]{figures/vibratingString.eps}
-  \caption{\label{vibratingSting}A chain of $101$ particles connected with
+  \caption{\label{vibratingString}A chain of $101$ particles connected with
            harmonic bonds and ends tethered to fixed points. It (imperfectly)
            follows the behaviour of the ideal vibrating string. The first four
            normal modes of vibration were achieved by setting the
@@ -230,10 +230,26 @@ int main(int argc, char *argv[]){
 
 \section{External fields}
 
-A straight line of linked particles does not make for much of an illustration,
-until you realise that you can activate gravity and let go of one of the ends to
-simulate a hanging rope.
+Figure \ref{vibratingString} may hold the attention of harmonic analysis
+enthusiasts but, personally, I cannot wait to free the chain of particles at one
+end and simulate a hanging rope. We already know how to deal with the bonds. We
+just eliminate the final fixed bond in the data.bonds file, leaving the end of
+the file like this:
+\begin{lstlisting}
+1
+0 0 0 0 1000.0 0.0
+%!
+\end{lstlisting}
 
+GRAVITY.
+
+\begin{figure}
+  \centering
+  \includegraphics[width = 0.6 \textwidth]{figures/swingingRope.eps}
+  \caption{\label{swingingRope}A chain of $101$ particles connected with
+           harmonic bonds attached to the origin behaves like a swinging rope
+           in a gravitational field.}
+\end{figure}
 
 
 \section{Alternative types of bonds}
@@ -246,7 +262,7 @@ Angular bonds
 
 Torsional bonds
 
-\section{Other potentials (DPD, SPH)}
+\section{Classical orbits}
 
 \section{Defining your own potentials}
 
