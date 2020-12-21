@@ -193,6 +193,7 @@ int main(int argc, char *argv[]){
   int numberOfSteps = 20000;
   int printEverynSteps = 2000;
 
+  %! codeblock: integrate
   for(int step = 0; step < numberOfSteps; ++step) {
     integrator->forwardTime();
 
@@ -208,6 +209,7 @@ int main(int argc, char *argv[]){
         out<<position[index[id]]<<endl;
     }
   }
+  %! codeblockend
 
   sys->finish();
 
@@ -232,8 +234,8 @@ int main(int argc, char *argv[]){
 
 Figure \ref{vibratingString} may hold the attention of harmonic analysis
 enthusiasts but, personally, I cannot wait to free the chain of particles at one
-end and simulate a hanging rope. We already know how to deal with the bonds. We
-just eliminate the final fixed bond in the data.bonds file, leaving the end of
+end and simulate a swinging rope. We already know how to deal with the bonds.
+Just eliminate the final fixed bond in the data.bonds file, leaving the end of
 the file like this:
 \begin{lstlisting}
 1
@@ -241,14 +243,171 @@ the file like this:
 %!
 \end{lstlisting}
 
-GRAVITY.
+We are holding our chain only from the side at the origin of coordinates, but if 
+we expect to watch it swing back and forth, we cannot forget to implement the 
+force driving this motion: gravity.
+
+Surely, we can add gravity into the mix with ease, right? It cannot be worse 
+than the Lennard-Jones potential or harmonic bonds. Well \ldots in a sense, it 
+does not differ much. You can incorporate it just as you would any other 
+interaction. Unfortunately, UAMMD was not designed with a standard gravity 
+interaction in mind, so we will have to write our own. Not to worry, though. We 
+will find it instructive and not too difficult.
+
+In our model, gravity will appear as an external force field, meaning that it 
+does not appear as an interaction among particles, but rather a force field that
+acts on each of them independently of the motions of the other particles. Thus,
+\begin{lstlisting}
+# include "Interactor/ExternalForces.cuh"
+%!
+\end{lstlisting}
+
+An external force definition consists of four parts:
+\begin{enumerate}
+  \item A setup.
+  \item A rule for how to calculate the force on a particle.
+  \item A rule for the particle energy due to the external field.
+  \item A function that obtains the information needed to calculate the force 
+        and energy.
+\end{enumerate}
+
+\begin{lstlisting}
+%! codeblock: gravityDefinition
+struct gravitationalForce{
+  real g;
+
+  gravitationalForce(real parameterg):g(parameterg){}
+
+  __device__ __forceinline__ real3 force(const real4 &position, const real &mass){
+    return make_real3(0.0f, -mass*g, 0.0f);
+  }
+
+  __device__ __forceinline__ real energy(const real4 &position, const real &mass){
+    return mass*g*position.y;
+  }
+
+  std::tuple<const real4 *, const real *> getArrays(ParticleData *particles){
+    auto position = particles->getPos(access::location::gpu, access::mode::read);
+    auto mass = particles->getMass(access::location::gpu, access::mode::read);
+    return std::make_tuple(position.raw(), mass.raw());
+  }
+};
+%! codeblockend
+\end{lstlisting}
+
+Pulled out to the right.
+
+\begin{lstlisting}
+%! codeblock: ropeInitialConditions
+  {
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
+    auto velocity
+      = particles->getVel(access::location::cpu,
+                          access::mode::write);
+    auto mass
+      = particles->getMass(access::location::cpu,
+                          access::mode::write);
+
+    real stringlength = 1.0;
+    for(int i = 0; i < numberOfParticles; ++i) {
+      position[i].x = i*(stringlength/(numberOfParticles - 1));
+      position[i].y = position[i].z = position[i].w = real(0.0);
+      velocity[i].x = velocity[i].y = velocity[i].z = real(0.0);
+      mass[i] = real(0.001);
+    }
+  }
+%! codeblockend
+\end{lstlisting}
+
+\begin{lstlisting}
+%! codeblock: gravityInteraction
+  {
+    auto gravity
+      = make_shared<ExternalForces<gravitationalForce>>(particles, sys, make_shared<gravitationalForce>(real(9.8)));
+
+    integrator->addInteractor(gravity);
+  }
+%! codeblockend
+\end{lstlisting}
+
+\begin{comment}
+Vibrating string simulation code:
+\begin{lstlisting}
+%! codefile: code/swingingRope.cu
+# include "uammd.cuh"
+# include "utils/InitialConditions.cuh"
+# include "Interactor/BondedForces.cuh"
+# include "Interactor/ExternalForces.cuh"
+# include "Integrator/VerletNVE.cuh"
+
+using namespace uammd;
+using std::make_shared;
+using std::endl;
+
+%! codeinsert: gravityDefinition
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  int numberOfParticles = 101;
+  auto particles
+    = make_shared<ParticleData>(numberOfParticles, sys);
+
+  %! codeinsert: ropeInitialConditions
+
+  using Verlet = VerletNVE;
+  Verlet::Parameters VerletParams;
+  VerletParams.dt = real(0.0001);
+  VerletParams.initVelocities=false;
+
+  %! codeinsert: Verlet src: chapters/first_simulation.tex
+
+  {
+    std::ofstream bondInfo("data.bonds");
+    if(not bondInfo.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.bonds file. Halting program.");
+      exit(-1);
+    }
+
+    bondInfo<<(numberOfParticles - 1)<<endl;
+    for(int i = 0; i < numberOfParticles - 1; ++i) {
+      bondInfo<<i<<" "<<(i + 1)<<" 1000.0 0.01"<<endl;
+    }
+    bondInfo<<"1"<<endl;
+    bondInfo<<"0 0 0 0 1000.0 0.0"<<endl;
+  }
+
+  %! codeinsert: stringBondInteractor
+
+  %! codeinsert: stringAddInteractor
+
+  %! codeinsert: gravityInteraction
+
+  std::string outputFile = "swingingRope.dat";
+  std::ofstream out(outputFile);
+
+  int numberOfSteps = 15000;
+  int printEverynSteps = 300;
+
+  %! codeinsert: integrate
+
+  sys->finish();
+
+  return 0;
+}
+%! codeend
+\ed{lstlisting}
 
 \begin{figure}
   \centering
   \includegraphics[width = 0.6 \textwidth]{figures/swingingRope.eps}
   \caption{\label{swingingRope}A chain of $101$ particles connected with
            harmonic bonds attached to the origin behaves like a swinging rope
-           in a gravitational field.}
+           in a gravitational field. \textit{Parameters}: time step
+           $dt = 10^{-4}$, 15000 steps printing every 300 steps.}
 \end{figure}
 
 
@@ -269,3 +428,14 @@ Torsional bonds
 Bond potentials
 
 Pair interactions
+
+\begin{comment}
+List of programs written in this chapter:
+
+%! codeblock: codelist
+* `vibratingString.cu`: A chain of particles linked by harmonic springs and held
+   tight at the ends behaving like a vibrating string.
+* `swingingRope.cu`: A chain of particles simulating a rope hanging from one of
+   its ends, swinging back and forth.
+%! codeblockend
+\end{comment}

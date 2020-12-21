@@ -9,10 +9,16 @@
 
 * `minimal.cu`: A minimal UAMMD program that only prints a Hello message and
   then exits.
-* `free_expansion.cu`: Ideal gas expanding freely in the vertical direction with
+* `freeExpansion.cu`: Ideal gas expanding freely in the vertical direction with
   periodic boundary conditions in the other two directions.
 * `Lennard-Jones.cu`: Particles in a periodic box interacting through a
   Lennard-Jones potential.
 * `superLennard-Jones.cu`: Improved Lennard-Jones system with logging and
   external parameter file.
 
+## Unleash your own potential
+
+* `vibratingString.cu`: A chain of particles linked by harmonic springs and held
+   tight at the ends behaving like a vibrating string.
+* `swingingRope.cu`: A chain of particles simulating a rope hanging from one of
+   its ends, swinging back and forth.
