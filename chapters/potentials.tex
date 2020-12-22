@@ -243,20 +243,20 @@ the file like this:
 %!
 \end{lstlisting}
 
-We are holding our chain only from the side at the origin of coordinates, but if 
-we expect to watch it swing back and forth, we cannot forget to implement the 
+We are holding our chain only from the side at the origin of coordinates, but if
+we expect to watch it swing back and forth, we cannot forget to implement the
 force driving this motion: gravity.
 
-Surely, we can add gravity into the mix with ease, right? It cannot be worse 
-than the Lennard-Jones potential or harmonic bonds. Well \ldots in a sense, it 
-does not differ much. You can incorporate it just as you would any other 
-interaction. Unfortunately, UAMMD was not designed with a standard gravity 
-interaction in mind, so we will have to write our own. Not to worry, though. We 
+Surely, we can add gravity into the mix with ease, right? It cannot be worse
+than the Lennard-Jones potential or harmonic bonds. Well \ldots in a sense, it
+does not differ much. You can incorporate it just as you would any other
+interaction. Unfortunately, UAMMD was not designed with a standard gravity
+interaction in mind, so we will have to write our own. Not to worry, though. We
 will find it instructive and not too difficult.
 
-In our model, gravity will appear as an external force field, meaning that it 
-does not appear as an interaction among particles, but rather a force field that
-acts on each of them independently of the motions of the other particles. Thus,
+In our model, gravity will appear as an external force field, meaning that it
+does not act as an interaction among particles, but rather a force field that
+affects each of them independently of the motions of the other particles. Thus,
 \begin{lstlisting}
 # include "Interactor/ExternalForces.cuh"
 %!
@@ -267,36 +267,67 @@ An external force definition consists of four parts:
   \item A setup.
   \item A rule for how to calculate the force on a particle.
   \item A rule for the particle energy due to the external field.
-  \item A function that obtains the information needed to calculate the force 
+  \item A function that obtains the information needed to calculate the force
         and energy.
 \end{enumerate}
-
+In terms of code, we create a data structure with a real value $g$ for the
+accleration of gravity.
 \begin{lstlisting}
 %! codeblock: gravityDefinition
 struct gravitationalForce{
   real g;
-
-  gravitationalForce(real parameterg):g(parameterg){}
-
+%! codeinsert: gravityConstructor
+%! codeinsert: gravityForce
+%! codeinsert: gravityEnergy
+%! codeinsert: gravityParticleInfo
+};
+%! codeblockend
+\end{lstlisting}
+Now, between the declaration of $g$ and the closing bracket, we will insert the
+four items listed above, beginning with a function that initialises the force.
+It should only do one thing, take the numerical value given to $g$ and assign it
+to the variable \texttt{g}. We can code it as an empty function.
+\begin{lstlisting}
+%! codeblock: gravityConstructor
+  gravitationalForce(real numericalValueOfg):g(numericalValueOfg){}
+%! codeblockend
+\end{lstlisting}
+The second item (the force) equals the mass of the particle times $-g$ in the
+$y$ direction.
+\begin{lstlisting}
+%! codeblock: gravityForce
   __device__ __forceinline__ real3 force(const real4 &position, const real &mass){
     return make_real3(0.0f, -mass*g, 0.0f);
   }
-
+%! codeblockend
+\end{lstlisting}
+Next, we write the function for the gravitational potential energy.
+\begin{lstlisting}
+%! codeblock: gravityEnergy
   __device__ __forceinline__ real energy(const real4 &position, const real &mass){
     return mass*g*position.y;
   }
-
+%! codeblockend
+\end{lstlisting}
+We end the data structure telling the interaction where to get the position and
+mass information.
+\begin{lstlisting}
+%! codeblock: gravityParticleInfo
   std::tuple<const real4 *, const real *> getArrays(ParticleData *particles){
     auto position = particles->getPos(access::location::gpu, access::mode::read);
     auto mass = particles->getMass(access::location::gpu, access::mode::read);
     return std::make_tuple(position.raw(), mass.raw());
   }
-};
 %! codeblockend
 \end{lstlisting}
+You might have asked yourself why we handed the position over to the force
+function even though it doesn't need to know the particle's location. The reason,
+you might have guessed, lies in the tuple function, which extracts information
+from the \texttt{particles} information and sends the same arguments to both the
+force and energy functions.
 
-Pulled out to the right.
-
+Imagine we pull the rope out to the right. In addition to the positions and
+velocities, we must also define the mass of each element in the rope.
 \begin{lstlisting}
 %! codeblock: ropeInitialConditions
   {
@@ -310,7 +341,7 @@ Pulled out to the right.
       = particles->getMass(access::location::cpu,
                           access::mode::write);
 
-    real stringlength = 1.0;
+    real stringlength = real(1.0);
     for(int i = 0; i < numberOfParticles; ++i) {
       position[i].x = i*(stringlength/(numberOfParticles - 1));
       position[i].y = position[i].z = position[i].w = real(0.0);
@@ -320,7 +351,13 @@ Pulled out to the right.
   }
 %! codeblockend
 \end{lstlisting}
+It does not matter much whether you write the numerical values as \texttt{1.0}
+or \texttt{real(1.0)} here. I recommend you get used to the second option in
+UAMMD. It will help the compiler speed up your code by casting the floating
+point number to the right precision.
 
+To create the gravitational interaction and add it to the integrator, follow the
+standard procedure.
 \begin{lstlisting}
 %! codeblock: gravityInteraction
   {
@@ -332,8 +369,27 @@ Pulled out to the right.
 %! codeblockend
 \end{lstlisting}
 
+Time for an important warning. If you want your code to compile with the changes
+in this section, you must appease the spirits of \texttt{nvcc} with the flag
+\texttt{--expt-relaxed-constexpr}.
+\begin{lstlisting}
+nvcc -I../uammd/src -I../uammd/src/third_party --expt-relaxed-constexpr -o swingingRope swingingRope.cu
+\end{lstlisting}
+as well as any other relevant options on your system. When all the pieces fit
+together nicely, you should be able to reproduce Figure \ref{swingingRope}.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width = 0.6 \textwidth]{figures/swingingRope.eps}
+  \caption{\label{swingingRope}A chain of $101$ particles connected with
+           harmonic bonds attached to the origin behaves like a swinging rope
+           in a gravitational field. \textit{Parameters}: time step
+           $dt = 10^{-4}$, 15000 steps printing every 300 steps.}
+\end{figure}
+
+
 \begin{comment}
-Vibrating string simulation code:
+Swinging rope simulation code:
 \begin{lstlisting}
 %! codefile: code/swingingRope.cu
 # include "uammd.cuh"
@@ -399,27 +455,68 @@ int main(int argc, char *argv[]){
   return 0;
 }
 %! codeend
-\ed{lstlisting}
+\end{lstlisting}
+\end{comment}
 
-\begin{figure}
-  \centering
-  \includegraphics[width = 0.6 \textwidth]{figures/swingingRope.eps}
-  \caption{\label{swingingRope}A chain of $101$ particles connected with
-           harmonic bonds attached to the origin behaves like a swinging rope
-           in a gravitational field. \textit{Parameters}: time step
-           $dt = 10^{-4}$, 15000 steps printing every 300 steps.}
-\end{figure}
+\section{Other types of bonds}
 
+Harmonic bonds thread points together easily, but some circumstances require
+other specialised types of bonds. Take a polymer strand in solution and zoom in
+on a section of a few hundred monomers. It may behave like a harmonic spring
+when you try to stretch it, but it will not extend indefinitely without
+breaking. Harmonic potentials, in contrast, allow you to stretch a bond
+indefinitely as long as you pull hard enough.
 
-\section{Alternative types of bonds}
+In settings like polymer research you would prefer a finitely extensible
+nonlinear  elastic (FENE) bond. FENE bonds have a potential function given by
+\begin{equation*}
+  V_\text{FENE}(r) = -\frac{1}{2}k r_0^2\ 
+                \ln\left(1 - \left(\frac{r}{r_0}\right)^2\right).
+\end{equation*}
+Note that the minimum value for $V_\text{FENE}(r)$ (with $r \geq 0$) lies at $r
+= 0$, so the force will tend to pull the particles on top of each other.
+Customarily, researchers combine FENE bonds with the repulsive part of
+Lennard-Jones potentials, making the interaction potential between two bonded
+particles equal to
+\begin{equation*}
+  V(r) =
+    \begin{cases}
+         V_\text{FENE}
+         + \epsilon
+         + 4\epsilon\left(\left(\frac{\sigma}{r}\right)^{12}
+                        - \left(\frac{\sigma}{r}\right)^6\right),
+         & \text{ for } r \leq \sqrt[6]{2} \sigma, \\
+         V_\text{FENE}
+         & \text{ for } r > \sqrt[6]{2} \sigma.
+    \end{cases}
+\end{equation*}
+Furthermore, note that $V(r)$ diverges as $r$ approaches $r_0$. This guarantees
+that particles will never separate further than $r_0$ as long as you choose
+small enough integration time steps.
 
-FENE
+Within UAMMD, code for FENE bonds parallels that of harmonic bonds, but with a
+different type, so you would define them with
+\begin{lstlisting}
+    using FENEBonds = BondedForces<BondedType::FENE>;
+\end{lstlisting}
+When experimenting with FENE bonds, remember that linked particles must start
+off with a separation smaller than $r_0$.
 
-Fixed bonds
+A different special case arises when modelling periodic structures. Picture an
+infinite chain of particles stretching across the simulation box from left to
+right. This we can simulate with periodic boundary conditions, but note that we
+have to connect the leftmost particle not to the last particle on the right, but
+rather to its periodic image to the left. Similarly, the particle closest to the
+right of the box attaches to a periodic image of the first particle on the left.
+Clearly, a bond crossing the whole width of the box will not do. We must specify
+that a bond between particles $i$ and $j$ means between $i$ and the closest
+periodic image of $j$ and viceversa. These types of bonds were named HarmonicPBC
+and FENEPBC in UAMMD.
 
-Angular bonds
+The final section in this chapter explains how to define your own bond
+potentials.
 
-Torsional bonds
+\section{Angular and torsional springs}
 
 \section{Classical orbits}
 
@@ -431,7 +528,6 @@ Pair interactions
 
 \begin{comment}
 List of programs written in this chapter:
-
 %! codeblock: codelist
 * `vibratingString.cu`: A chain of particles linked by harmonic springs and held
    tight at the ends behaving like a vibrating string.

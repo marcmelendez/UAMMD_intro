@@ -3,6 +3,7 @@ set output "vibratingString.eps"
 
 set size square
 set ytics ("n = 1" 0.2, "n = 2" 0.4, "n = 3" 0.6, "n = 4" 0.8)
+set xlabel "{/:Italic x}"
 
 plot [0:1][0:1] "../data/vibratingString.n1.dat" u 1:($2 + .2) w l lw 2 lc rgb 'black' notitle, \
                 "../data/vibratingString.n2.dat" u 1:($2 + .4) w l lw 2 lc rgb 'black' notitle, \
