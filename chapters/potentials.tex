@@ -24,9 +24,9 @@ long as they remain at the equilibrium distance $r_0$, they exert no force on
 each other, but when you stretch their separation $r$, they pull back. The
 potential function for this bond, then, equals
 \begin{equation*}
-  V(r) = \frac{1}{2}\ k\ (r - r_0)^2,
+  V(r) = \frac{1}{2}\ K\ (r - r_0)^2,
 \end{equation*}
-where the spring constant $k$ quantifies the bond rigidity.
+where the spring constant $K$ quantifies the bond rigidity.
 
 Take a string of one hundred and one particles as our explanatory device. We
 will line them all up along a curved queue, standing initially at rest.
@@ -69,18 +69,18 @@ format of this plain text bond file. It should look something like this:
     . . .
 \end{lstlisting}
 and so on. The file begins with the number of bonds ($100$) followed by a row
-for each bond presenting $i$, $j$, $k$ and $r_0$, that is, the particle ID
+for each bond presenting $i$, $j$, $K$ and $r_0$, that is, the particle ID
 numbers, the bond spring constant and the equilibrium distance. Hence, the next
-line links particles $0$ and $1$ with a bond of $k = 1000.0$ and $r_0 = 0.01$.
+line links particles $0$ and $1$ with a bond of $K = 1000.0$ and $r_0 = 0.01$.
 After that, we get the values for the bond connecting particles $1$ and $2$.
-Even though I have chosen identical values of $k$ and $r_0$ for all the bonds in
+Even though I have chosen identical values of $K$ and $r_0$ for all the bonds in
 this example, you can of course make them all different if you like.
 
 In addition to linking particles, you can attach them to fixed points in space.
 We will pin particle $0$ to the origin of coordinates and particle $100$ to
 point $(1, 0, 0)$. After the previous list of bonds, we must include the number
 of fixed bonds (only $2$ in our case). The format for these is simply $i$, $x$,
-$y$, $z$, $k$, $r_0$, meaning: particle ID, position in space $(x, y, z)$,
+$y$, $z$, $K$, $r_0$, meaning: particle ID, position in space $(x, y, z)$,
 spring constant and equilibrium distance. So in our example, the bond file
 should end with:
 \begin{lstlisting}
@@ -470,7 +470,7 @@ indefinitely as long as you pull hard enough.
 In settings like polymer research you would prefer a finitely extensible
 nonlinear  elastic (FENE) bond. FENE bonds have a potential function given by
 \begin{equation*}
-  V_\text{FENE}(r) = -\frac{1}{2}k r_0^2\ 
+  V_\text{FENE}(r) = -\frac{1}{2} K r_0^2\ 
                 \ln\left(1 - \left(\frac{r}{r_0}\right)^2\right).
 \end{equation*}
 Note that the minimum value for $V_\text{FENE}(r)$ (with $r \geq 0$) lies at $r
@@ -517,6 +517,18 @@ The final section in this chapter explains how to define your own bond
 potentials.
 
 \section{Angular and torsional springs}
+
+\begin{figure}
+  \centering
+  \includegraphics[width = 0.5 \textwidth]{figures/angularSprings.eps}
+  \caption{\label{angularBonds}Angular bonds}
+\end{figure}
+
+\begin{figure}
+  \centering
+  \includegraphics[width = 0.6 \textwidth]{figures/torsionalSprings.eps}
+  \caption{\label{torsionalBonds}Torsional bonds}
+\end{figure}
 
 \section{Classical orbits}
 
