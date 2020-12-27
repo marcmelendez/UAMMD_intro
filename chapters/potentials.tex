@@ -9,8 +9,8 @@
 
 You can only have so much fun playing with a Lennard-Jones simulation. Changing
 the parameter values and then looking for differences in your plots gets old
-soon. If you have made it this far, you want more. You imagine molecules, or
-larger structures. Perhaps you would like to simulate billowing smoke, sloshing
+soon. If you've made it this far, you want more. You imagine molecules, or
+larger structures. Perhaps you'd like to simulate billowing smoke, sloshing
 water, or planets orbiting a star. All in good time.
 
 Whatever your final aim, you need new interactions, and this chapter contains a
@@ -513,22 +513,85 @@ that a bond between particles $i$ and $j$ means between $i$ and the closest
 periodic image of $j$ and viceversa. These types of bonds were named HarmonicPBC
 and FENEPBC in UAMMD.
 
-The final section in this chapter explains how to define your own bond
-potentials.
+The final part of this chapter explains how to define your own bond types, after
+the following section on angular potentials.
 
-\section{Angular and torsional springs}
+\section{Angular potentials}
+
+How do you transform a rope into a flexible rod in UAMMD? Probably the easiest
+route simply adds more bonds. Instead of connecting particles in a line only to
+their nearest neighbours, connect them also to particles lying farther away.
+This approach is known as building an elastic network, and has many practical
+applications.
+
+Now imagine a molecule formed by atoms labelled $i$, $j$ and $k$, as in Figure 
+\ref{angularPotential}. Bonds connect particles $i$ and $j$, and particles $j$ 
+and $k$. We could get the molecule to form the right angle $\theta$ by adding in 
+an extra bond between $i$ and $k$. If we wish to study the vibrations of our 
+molecule, we wouldn't usually employ that approach, though. Here's why. Forces 
+should tend to restore $\theta$ when the molecule undergoes a deformation that 
+changes this angle, but we can stretch the bond between $i$ and $k$ without 
+altering the angle $\theta$ by stretching the other two bonds in the the same 
+proportion. We would cause a force between $i$ and $k$ that should not be there. 
+Contrariwise, you can devise configurations with angles different from $\theta$ 
+while keeping the bond between $i$ and $k$ at the equilibrium length, achieving 
+a configuration where there is no force between $i$ and $k$ even though there 
+should be one. As a result, you get a molecule that doesn't wobble as it should.
 
 \begin{figure}
   \centering
   \includegraphics[width = 0.5 \textwidth]{figures/angularSprings.eps}
-  \caption{\label{angularBonds}Angular bonds}
+  \caption{\label{angularPotential}Angular potential}
 \end{figure}
+
+We set angular potentials indicating the labels of the three particles involved,
+$i$, $j$ and $k$, the rigidity $K$ and the equilibrium angle $\theta_0$. When
+the particles form an angle $\theta \neq \theta_0$, they feel a force that tends
+to restore $\theta$ back to $\theta_0$. The angular potentials file would start
+with the number of triplets on the first line, followed by rows in which you
+specify $i$, $j$, $k$, $K$ and $\theta_0$, in that order. So a file with two
+angular potentials could look like this
+\begin{lstlisting}
+2
+0 1 2 100 0
+5 6 7 100 1.5708
+%!
+\end{lstlisting}
+The first three particles would tend to lie on a straight line, while particles 
+$5$, $6$ and $7$ would form a right angle. Note that $\theta_0$ refers to the 
+equilibrium angle between $\mathbf{r}_{ij}$ and $\mathbf{r}_{jk}$ (see Fig. 
+\ref{angularPotential}).
+
+If we link our UAMMD module to the relevant header,
+\begin{lstlisting}
+# include "Interactor/AngularBondedForces.cuh"
+%!
+\end{lstlisting}
+creating the interaction follows the usual rules, but notice that you need to
+have a simulation box defined (as explained in section \ref{simulation_box}).
+\begin{lstlisting}
+  {
+    using angularPotentials = AngularBondedForces<AngularBondedForces_ns::AngularBond>;
+    angularPotentials::Parameters angularParameters;
+    Params.readfile = "data.angularForces";
+    auto angularForces
+      = make_shared<angularPorentials>(particles, sys, 
+                                       angularParameters,
+                                       AngularBondedForces_ns::AngularBond(box));
+    integrator->addInteractor(angularForces);
+  }
+%!
+\end{lstlisting}
 
 \begin{figure}
   \centering
   \includegraphics[width = 0.6 \textwidth]{figures/torsionalSprings.eps}
   \caption{\label{torsionalBonds}Torsional bonds}
 \end{figure}
+
+It will not surprise you to learn that the file format for these potentials
+begins with the number of quartets followed by rows of $i$, $j$, $k$, $l$, $K$
+and $\phi_0$ for each relevant torsion angle.
 
 \section{Classical orbits}
 
