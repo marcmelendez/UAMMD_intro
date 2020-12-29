@@ -14,3 +14,6 @@ repository. Even if you don't, but you feel a painfully slow progress reading
 this book, please skim through the pages and skip ahead until you find an
 interesting section.
 
+I have copied the entire example programs discussed in the main text into the
+**code** folder.
+

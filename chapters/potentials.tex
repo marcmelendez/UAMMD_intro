@@ -46,10 +46,10 @@ will line them all up along a curved queue, standing initially at rest.
                           access::mode::write);
 
     real amplitude = 0.1;
-    real stringlength = 1.0;
+    real stringLength = 1.0;
     int modenum = 1;
     for(int i = 0; i < numberOfParticles; ++i) {
-      position[i].x = i*(stringlength/(numberOfParticles - 1));
+      position[i].x = i*(stringLength/(numberOfParticles - 1));
       position[i].y = amplitude*sin(modenum*M_PI*position[i].x);
       position[i].z = position[i].w = 0;
       velocity[i].x = velocity[i].y = velocity[i].z = 0;
@@ -341,9 +341,9 @@ velocities, we must also define the mass of each element in the rope.
       = particles->getMass(access::location::cpu,
                           access::mode::write);
 
-    real stringlength = real(1.0);
+    real ropeLength = real(1.0);
     for(int i = 0; i < numberOfParticles; ++i) {
-      position[i].x = i*(stringlength/(numberOfParticles - 1));
+      position[i].x = i*(ropeLength/(numberOfParticles - 1));
       position[i].y = position[i].z = position[i].w = real(0.0);
       velocity[i].x = velocity[i].y = velocity[i].z = real(0.0);
       mass[i] = real(0.001);
@@ -524,24 +524,27 @@ their nearest neighbours, connect them also to particles lying farther away.
 This approach is known as building an elastic network, and has many practical
 applications.
 
-Now imagine a molecule formed by atoms labelled $i$, $j$ and $k$, as in Figure 
-\ref{angularPotential}. Bonds connect particles $i$ and $j$, and particles $j$ 
-and $k$. We could get the molecule to form the right angle $\theta$ by adding in 
-an extra bond between $i$ and $k$. If we wish to study the vibrations of our 
-molecule, we wouldn't usually employ that approach, though. Here's why. Forces 
-should tend to restore $\theta$ when the molecule undergoes a deformation that 
-changes this angle, but we can stretch the bond between $i$ and $k$ without 
-altering the angle $\theta$ by stretching the other two bonds in the the same 
-proportion. We would cause a force between $i$ and $k$ that should not be there. 
-Contrariwise, you can devise configurations with angles different from $\theta$ 
-while keeping the bond between $i$ and $k$ at the equilibrium length, achieving 
-a configuration where there is no force between $i$ and $k$ even though there 
-should be one. As a result, you get a molecule that doesn't wobble as it should.
+Now imagine a molecule formed by atoms labelled $i$, $j$ and $k$, as in Figure
+\ref{angularPotential}. Bonds connect particles $i$ and $j$, and particles $j$
+and $k$. We could get the molecule to form the right angle $\theta$ by adding in
+an extra bond between $i$ and $k$. If we wish to study the vibrations of our
+molecule, we wouldn't usually employ that approach, though. Here's why. Forces
+should tend to restore $\theta$ when the molecule undergoes a deformation that
+changes this angle, but we can stretch the bond between $i$ and $k$ without
+altering the angle $\theta$ by stretching the other two bonds in the the same
+proportion. That would cause a force between $i$ and $k$ that should not be
+there. Contrariwise, you can devise configurations with angles different from
+$\theta$ while keeping the bond between $i$ and $k$ at the equilibrium length,
+achieving a configuration where there is no force between $i$ and $k$ even
+though there should be one. As a result, you get a molecule that doesn't wobble
+as it should.
 
 \begin{figure}
   \centering
   \includegraphics[width = 0.5 \textwidth]{figures/angularSprings.eps}
-  \caption{\label{angularPotential}Angular potential}
+  \caption{\label{angularPotential}Angular potentials cause forces on a triplet
+           of particles when the angle they form differs from some established
+           equilibrium angle.}
 \end{figure}
 
 We set angular potentials indicating the labels of the three particles involved,
@@ -572,9 +575,9 @@ fixed-point bonds, and let gravity bend the rest of the cable.
 %! codeblock: cableFixedBonds
     bondInfo<<"10"<<endl;
 
-    real beamlength = real(1.0);
+    real cableLength = real(1.0);
     for(int i = 0; i < 10; i++)
-      bondInfo<<i<<" "<<i*(beamlength/(numberOfParticles - 1))<<" 0 0 1000.0 0.0"<<endl;
+      bondInfo<<i<<" "<<i*(cableLength/(numberOfParticles - 1))<<" 0 0 1000.0 0.0"<<endl;
 %! codeblockend
 \end{lstlisting}
 We will need a smaller time step to resolve the motion.
@@ -630,7 +633,8 @@ creation of harmonic bonds.
 \begin{lstlisting}
 %! codeblock: angularForces
   {
-    using angularPotentials = AngularBondedForces<AngularBondedForces_ns::AngularBond>;
+    using angularPotentials
+      = AngularBondedForces<AngularBondedForces_ns::AngularBond>;
     angularPotentials::Parameters angularParameters;
     angularParameters.readFile = "data.angularForces";
     auto angularForces
@@ -726,28 +730,221 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
-Figure \ref{cable} shows the result of running the cable program. When compared
-to Figure \ref{swingingRope}, you can clearly see we have increased our chain's
-aversion to bending.
-
 \begin{figure}
   \centering
   \includegraphics[width = 0.6 \textwidth]{figures/cable.eps}
   \caption{\label{cable}101 particles simulating a flexible cable bending under 
-           its own weight. The leftmost tenth of the cable was held in place 
-           with fixed-point bonds.}
+           its own weight. The tenth of the cable closest to the origin was held
+           in place with fixed-point bonds.}
 \end{figure}
 
+Figure \ref{cable} shows the result of running the cable program. When compared
+to Figure \ref{swingingRope}, you can clearly see we have increased our chain's
+aversion to bending.
+
+We're not yet done with angular potentials, though. Look at the molecule in 
+Figure \ref{torsionalSprings}. There, we could set up angular forces that
+restored the angle between $\mathbf{r}_{ij}$ and $\mathbf{r}_{jk}$, and between
+$\mathbf{r}_{jk}$ and $\mathbf{r}_{kl}$. However, $\mathbf{r}_{kl}$ would still 
+swivel freely around the axis going through $\mathbf{r}_{jk}$, unless we define
+some potential that opposes the torsion of this molecule. This we can achieve
+with the torsional forces interaction.
+\begin{lstlisting}
+# include "Interactor/TorsionalBondedForces.cuh"
+%!
+\end{lstlisting}
 
 \begin{figure}
   \centering
   \includegraphics[width = 0.6 \textwidth]{figures/torsionalSprings.eps}
-  \caption{\label{torsionalBonds}Torsional bonds}
+  \caption{\label{torsionalSprings}Torsional potentials oppose torsion. In the
+           diagram above, a torsional potential would act to restore the
+           equilibrium value of $\phi$, the angle formed between the plane
+           shared by particles $i$, $j$ and $k$, and the plane shared by $j$,
+           $k$ and $l$.}
 \end{figure}
 
-It will not surprise you to learn that the file format for these potentials
+It will not surprise you to learn that the file format for torsional forces
 begins with the number of quartets followed by rows of $i$, $j$, $k$, $l$, $K$
 and $\phi_0$ for each relevant torsion angle.
+
+With a few changes to our cable code we'll simulate a curly wire. To simplify
+our code slightly, we leave out gravity and fixed-point bonds. In consequence,
+we must provide some curvature. Otherwise, the chain will remain stretched out
+in a state of unstable equilibrium. We will add in a slight torsion as well, to
+bias the torsional forces.
+\begin{lstlisting}
+%! codeblock: wireInitialConditions
+  {
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
+    auto velocity
+      = particles->getVel(access::location::cpu,
+                          access::mode::write);
+
+    real wireLength = 1.0;
+    for(int i = 0; i < numberOfParticles; ++i) {
+      position[i].x
+        = wireLength/(2*M_PI)*cos(2*M_PI*i/(numberOfParticles - 1));
+      position[i].y
+        = wireLength/(2*M_PI)*sin(2*M_PI*i/(numberOfParticles - 1));
+      position[i].z = 0.0001*i;
+      position[i].w = 0;
+      velocity[i].x = velocity[i].y = velocity[i].z = 0;
+    }
+  }
+%! codeblockend
+\end{lstlisting}
+Soften the angular forces and set the curvature of the chain with
+\begin{lstlisting}
+%! codeblock: wireCurvature
+    real K = 1.0, theta0 = 4*M_PI/(numberOfParticles - 1);
+%! codeblockend
+\end{lstlisting}
+Now for the torsional potentials connecting every four sequential points.
+\begin{lstlisting}
+%! codeblock: torsionalForcesFile
+  {
+    std::ofstream torsionalInfo("data.torsionalForces");
+    if(not torsionalInfo.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.torsionalForces file. Halting program.");
+      exit(-1);
+    }
+
+    real K = 0.1, phi0 = 0.01;
+    torsionalInfo<<(numberOfParticles - 3)<<endl;
+    for(int i = 0; i < numberOfParticles - 2; ++i) {
+      torsionalInfo<<i<<" "<<(i + 1)<<" "<<(i + 2)<<" "<<(i + 3)
+                   <<" "<<K<<" "<<phi0<<endl;
+    }
+  }
+%! codeblockend
+\end{lstlisting}
+Torsion interactors replicate the structure of the angular interaction code
+written above.
+\begin{lstlisting}
+%! codeblock: torsionalForces
+  {
+    using torsionalPotentials
+     = TorsionalBondedForces<TorsionalBondedForces_ns::TorsionalBond>;
+    torsionalPotentials::Parameters torsionalParameters;
+    torsionalParameters.readFile = "data.torsionalForces";
+    auto torsionalForces
+     = make_shared<torsionalPotentials>(particles, sys,
+                                        torsionalParameters,
+                                        std::make_shared<TorsionalBondedForces_ns::TorsionalBond>(box));
+    integrator->addInteractor(torsionalForces);
+  }
+%! codeblockend
+\end{lstlisting}
+This time, I carried out a longer time integration.
+\begin{lstlisting}
+%! codeblock: wireNumberOfSteps
+  int numberOfSteps = 600000;
+  int printEverynSteps = 10000;
+%! codeblockend
+\end{lstlisting}
+
+\begin{figure}
+  \centering
+  \includegraphics[width = \textwidth]{figures/curlyWire.eps}
+  \caption{\label{curlyWire}Top and side view of the final state of the curly
+           wire simulation. The dashed line marks the initial state of the
+           wire, while the grey line presents the final state when you
+           deactivate the torsional potentials.}
+\end{figure}
+
+Figure \ref{curlyWire} compares the initial and final state of the wire after
+running the simulation. Not only does the wire curl up, it also moves in the
+direction perpendicular to the $xy$ plane. Deactivating the torsional forces
+leads to a completely different outcome, of course.
+
+\begin{comment}
+The structure of the UAMMD module code for a curled wire follows.
+\begin{lstlisting}
+%! codefile: code/curlyWire.cu
+# include "uammd.cuh"
+# include "utils/InitialConditions.cuh"
+# include "Interactor/BondedForces.cuh"
+# include "Interactor/AngularBondedForces.cuh"
+# include "Interactor/TorsionalBondedForces.cuh"
+# include "Integrator/VerletNVE.cuh"
+
+using namespace uammd;
+using std::make_shared;
+using std::endl;
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  int numberOfParticles = 101;
+  auto particles
+    = make_shared<ParticleData>(numberOfParticles, sys);
+
+  %! codeinsert: wireInitialConditions
+
+  %! codeinsert: cableBox
+
+  using Verlet = VerletNVE;
+  Verlet::Parameters VerletParams;
+  %! codeinsert: cableTimeStep
+  VerletParams.initVelocities=false;
+
+  %! codeinsert: Verlet src: chapters/first_simulation.tex
+
+  {
+    std::ofstream bondInfo("data.bonds");
+    if(not bondInfo.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.bonds file. Halting program.");
+      exit(-1);
+    }
+
+    bondInfo<<(numberOfParticles - 1)<<endl;
+    for(int i = 0; i < numberOfParticles - 1; ++i) {
+      bondInfo<<i<<" "<<(i + 1)<<" 1000.0 0.01"<<endl;
+    }
+  }
+
+  {
+    std::ofstream angularInfo("data.angularForces");
+    if(not angularInfo.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.angularForces file. Halting program.");
+      exit(-1);
+    }
+
+    %! codeinsert: wireCurvature
+    angularInfo<<(numberOfParticles - 2)<<endl;
+    for(int i = 0; i < numberOfParticles - 2; ++i) {
+      angularInfo<<i<<" "<<(i + 1)<<" "<<(i + 2)<<" "<<K<<" "<<theta0<<endl;
+    }
+  }
+
+  %! codeinsert: torsionalForcesFile
+
+  %! codeinsert: stringBondInteractor
+
+  %! codeinsert: stringAddInteractor
+
+  %! codeinsert: angularForces
+
+  %! codeinsert: torsionalForces
+
+  std::string outputFile = "curlyWire.dat";
+  std::ofstream out(outputFile);
+
+  %! codeinsert: wireNumberOfSteps
+
+  %! codeinsert: integrate
+
+  sys->finish();
+
+  return 0;
+}
+%! codeend
+\end{lstlisting}
+\end{comment}
 
 \section{Classical orbits}
 
@@ -766,5 +963,7 @@ List of programs written in this chapter:
    its ends, swinging back and forth in a gravitational field.
 * `cable.cu`: A chain of particles simulating a flexible cable bending under its
    own weight.
+* `curlyWire.cu`: A chain of particles behaving like a curly wire bending due to
+   angular and torsional forces.
 %! codeblockend
 \end{comment}

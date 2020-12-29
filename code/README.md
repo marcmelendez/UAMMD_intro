@@ -24,3 +24,5 @@
    its ends, swinging back and forth in a gravitational field.
 * `cable.cu`: A chain of particles simulating a flexible cable bending under its
    own weight.
+* `curlyWire.cu`: A chain of particles behaving like a curly wire bending due to
+   angular and torsional forces.

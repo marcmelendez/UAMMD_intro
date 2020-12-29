@@ -24,10 +24,10 @@ int main(int argc, char *argv[]){
                           access::mode::write);
 
     real amplitude = 0.1;
-    real stringlength = 1.0;
+    real stringLength = 1.0;
     int modenum = 1;
     for(int i = 0; i < numberOfParticles; ++i) {
-      position[i].x = i*(stringlength/(numberOfParticles - 1));
+      position[i].x = i*(stringLength/(numberOfParticles - 1));
       position[i].y = amplitude*sin(modenum*M_PI*position[i].x);
       position[i].z = position[i].w = 0;
       velocity[i].x = velocity[i].y = velocity[i].z = 0;

@@ -43,9 +43,9 @@ int main(int argc, char *argv[]){
       = particles->getMass(access::location::cpu,
                           access::mode::write);
 
-    real stringlength = real(1.0);
+    real ropeLength = real(1.0);
     for(int i = 0; i < numberOfParticles; ++i) {
-      position[i].x = i*(stringlength/(numberOfParticles - 1));
+      position[i].x = i*(ropeLength/(numberOfParticles - 1));
       position[i].y = position[i].z = position[i].w = real(0.0);
       velocity[i].x = velocity[i].y = velocity[i].z = real(0.0);
       mass[i] = real(0.001);

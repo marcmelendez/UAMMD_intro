@@ -2,28 +2,12 @@
 # include "utils/InitialConditions.cuh"
 # include "Interactor/BondedForces.cuh"
 # include "Interactor/AngularBondedForces.cuh"
-# include "Interactor/ExternalForces.cuh"
+# include "Interactor/TorsionalBondedForces.cuh"
 # include "Integrator/VerletNVE.cuh"
 
 using namespace uammd;
 using std::make_shared;
 using std::endl;
-
-struct gravitationalForce{
-  real g;
-  gravitationalForce(real numericalValueOfg):g(numericalValueOfg){}
-  __device__ __forceinline__ real3 force(const real4 &position, const real &mass){
-    return make_real3(0.0f, -mass*g, 0.0f);
-  }
-  __device__ __forceinline__ real energy(const real4 &position, const real &mass){
-    return mass*g*position.y;
-  }
-  std::tuple<const real4 *, const real *> getArrays(ParticleData *particles){
-    auto position = particles->getPos(access::location::gpu, access::mode::read);
-    auto mass = particles->getMass(access::location::gpu, access::mode::read);
-    return std::make_tuple(position.raw(), mass.raw());
-  }
-};
 
 int main(int argc, char *argv[]){
 
@@ -40,16 +24,16 @@ int main(int argc, char *argv[]){
     auto velocity
       = particles->getVel(access::location::cpu,
                           access::mode::write);
-    auto mass
-      = particles->getMass(access::location::cpu,
-                          access::mode::write);
 
-    real ropeLength = real(1.0);
+    real wireLength = 1.0;
     for(int i = 0; i < numberOfParticles; ++i) {
-      position[i].x = i*(ropeLength/(numberOfParticles - 1));
-      position[i].y = position[i].z = position[i].w = real(0.0);
-      velocity[i].x = velocity[i].y = velocity[i].z = real(0.0);
-      mass[i] = real(0.001);
+      position[i].x
+        = wireLength/(2*M_PI)*cos(2*M_PI*i/(numberOfParticles - 1));
+      position[i].y
+        = wireLength/(2*M_PI)*sin(2*M_PI*i/(numberOfParticles - 1));
+      position[i].z = 0.0001*i;
+      position[i].w = 0;
+      velocity[i].x = velocity[i].y = velocity[i].z = 0;
     }
   }
 
@@ -75,11 +59,6 @@ int main(int argc, char *argv[]){
     for(int i = 0; i < numberOfParticles - 1; ++i) {
       bondInfo<<i<<" "<<(i + 1)<<" 1000.0 0.01"<<endl;
     }
-    bondInfo<<"10"<<endl;
-
-    real cableLength = real(1.0);
-    for(int i = 0; i < 10; i++)
-      bondInfo<<i<<" "<<i*(cableLength/(numberOfParticles - 1))<<" 0 0 1000.0 0.0"<<endl;
   }
 
   {
@@ -89,10 +68,25 @@ int main(int argc, char *argv[]){
       exit(-1);
     }
 
-    real K = 2.0, theta0 = 0.0;
+    real K = 1.0, theta0 = 4*M_PI/(numberOfParticles - 1);
     angularInfo<<(numberOfParticles - 2)<<endl;
     for(int i = 0; i < numberOfParticles - 2; ++i) {
       angularInfo<<i<<" "<<(i + 1)<<" "<<(i + 2)<<" "<<K<<" "<<theta0<<endl;
+    }
+  }
+
+  {
+    std::ofstream torsionalInfo("data.torsionalForces");
+    if(not torsionalInfo.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.torsionalForces file. Halting program.");
+      exit(-1);
+    }
+
+    real K = 0.1, phi0 = 0.01;
+    torsionalInfo<<(numberOfParticles - 3)<<endl;
+    for(int i = 0; i < numberOfParticles - 2; ++i) {
+      torsionalInfo<<i<<" "<<(i + 1)<<" "<<(i + 2)<<" "<<(i + 3)
+                   <<" "<<K<<" "<<phi0<<endl;
     }
   }
 
@@ -118,17 +112,22 @@ int main(int argc, char *argv[]){
   }
 
   {
-    auto gravity
-      = make_shared<ExternalForces<gravitationalForce>>(particles, sys, make_shared<gravitationalForce>(real(9.8)));
-
-    integrator->addInteractor(gravity);
+    using torsionalPotentials
+     = TorsionalBondedForces<TorsionalBondedForces_ns::TorsionalBond>;
+    torsionalPotentials::Parameters torsionalParameters;
+    torsionalParameters.readFile = "data.torsionalForces";
+    auto torsionalForces
+     = make_shared<torsionalPotentials>(particles, sys,
+                                        torsionalParameters,
+                                        std::make_shared<TorsionalBondedForces_ns::TorsionalBond>(box));
+    integrator->addInteractor(torsionalForces);
   }
 
-  std::string outputFile = "cable.dat";
+  std::string outputFile = "curlyWire.dat";
   std::ofstream out(outputFile);
 
-  int numberOfSteps = 150000;
-  int printEverynSteps = 5000;
+  int numberOfSteps = 600000;
+  int printEverynSteps = 10000;
 
   for(int step = 0; step < numberOfSteps; ++step) {
     integrator->forwardTime();
