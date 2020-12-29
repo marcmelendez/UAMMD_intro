@@ -1,4 +1,4 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+/%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                                                                              %
 %            A Painless Introduction to Programming UAMMD Modules              %
 %                    Chapter 2: Unleash your own potential                     %
@@ -562,26 +562,182 @@ $5$, $6$ and $7$ would form a right angle. Note that $\theta_0$ refers to the
 equilibrium angle between $\mathbf{r}_{ij}$ and $\mathbf{r}_{jk}$ (see Fig. 
 \ref{angularPotential}).
 
+With the sole intention of showing you how angular potentials work, we'll 
+transform our rope in the previous code into something like a fiberglass cable, 
+in that it opposes bending slightly.
+
+For starters, we hold the inital tenth of the cable horizontally with
+fixed-point bonds, and let gravity bend the rest of the cable.
+\begin{lstlisting}
+%! codeblock: cableFixedBonds
+    bondInfo<<"10"<<endl;
+
+    real beamlength = real(1.0);
+    for(int i = 0; i < 10; i++)
+      bondInfo<<i<<" "<<i*(beamlength/(numberOfParticles - 1))<<" 0 0 1000.0 0.0"<<endl;
+%! codeblockend
+\end{lstlisting}
+We will need a smaller time step to resolve the motion.
+\begin{lstlisting}
+%! codeblock: cableTimeStep
+  VerletParams.dt = real(0.00001);
+%! codeblockend
+\end{lstlisting}
+Consequently, we increase the number of steps to integrate.
+\begin{lstlisting}
+%! codeblock: cableNumberOfSteps
+  int numberOfSteps = 150000;
+  int printEverynSteps = 5000;
+%! codeblockend
+\end{lstlisting}
+
+Now let us link our chain with angular potentials, by attaching every three
+consecutive particles with $K = 2.0$ and $\theta_0 = 0$.
+\begin{lstlisting}
+%! codeblock: angularForcesFile
+  {
+    std::ofstream angularInfo("data.angularForces");
+    if(not angularInfo.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.angularForces file. Halting program.");
+      exit(-1);
+    }
+
+    real K = 2.0, theta0 = 0.0;
+    angularInfo<<(numberOfParticles - 2)<<endl;
+    for(int i = 0; i < numberOfParticles - 2; ++i) {
+      angularInfo<<i<<" "<<(i + 1)<<" "<<(i + 2)<<" "<<K<<" "<<theta0<<endl;
+    }
+  }
+%! codeblockend
+\end{lstlisting}
+
 If we link our UAMMD module to the relevant header,
 \begin{lstlisting}
 # include "Interactor/AngularBondedForces.cuh"
 %!
 \end{lstlisting}
 creating the interaction follows the usual rules, but notice that you need to
-have a simulation box defined (as explained in section \ref{simulation_box}).
+have a simulation box defined (as explained in section \ref{simulation_box}). We
+will just make the box infinite in every direction.
 \begin{lstlisting}
+%! codeblock: cableBox
+  real L = std::numeric_limits<real>::infinity();
+  Box box(make_real3(L, L, L));
+%! codeblockend
+\end{lstlisting}
+To generate the angular forces interaction, we write code that parallels the
+creation of harmonic bonds.
+\begin{lstlisting}
+%! codeblock: angularForces
   {
     using angularPotentials = AngularBondedForces<AngularBondedForces_ns::AngularBond>;
     angularPotentials::Parameters angularParameters;
-    Params.readfile = "data.angularForces";
+    angularParameters.readFile = "data.angularForces";
     auto angularForces
-      = make_shared<angularPorentials>(particles, sys, 
+      = make_shared<angularPotentials>(particles, sys,
                                        angularParameters,
-                                       AngularBondedForces_ns::AngularBond(box));
+                                       std::make_shared<AngularBondedForces_ns::AngularBond>(box));
     integrator->addInteractor(angularForces);
   }
-%!
+%! codeblockend
 \end{lstlisting}
+I should briefly comment on three annoying peculiarities in the code snippet
+above. One, the bond type has an irritatingly redundant long name:
+\begin{verbatim}
+AngularBondedForces_ns::AngularBond
+\end{verbatim}
+Two, the file name parameter in this case was set to ``\texttt{readFile}'', 
+instead of ``\texttt{file}'' as it was called for harmonic bonds. Three, for 
+obscure design reasons that we do not care about now, the interactor takes a 
+shared pointer to the bond type as an extra parameter.
+
+\begin{comment}
+The structure of the UAMMD module code for a flexible cable follows.
+\begin{lstlisting}
+%! codefile: code/cable.cu
+# include "uammd.cuh"
+# include "utils/InitialConditions.cuh"
+# include "Interactor/BondedForces.cuh"
+# include "Interactor/AngularBondedForces.cuh"
+# include "Interactor/ExternalForces.cuh"
+# include "Integrator/VerletNVE.cuh"
+
+using namespace uammd;
+using std::make_shared;
+using std::endl;
+
+%! codeinsert: gravityDefinition
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  int numberOfParticles = 101;
+  auto particles
+    = make_shared<ParticleData>(numberOfParticles, sys);
+
+  %! codeinsert: ropeInitialConditions
+
+  %! codeinsert: cableBox
+
+  using Verlet = VerletNVE;
+  Verlet::Parameters VerletParams;
+  %! codeinsert: cableTimeStep
+  VerletParams.initVelocities=false;
+
+  %! codeinsert: Verlet src: chapters/first_simulation.tex
+
+  {
+    std::ofstream bondInfo("data.bonds");
+    if(not bondInfo.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.bonds file. Halting program.");
+      exit(-1);
+    }
+
+    bondInfo<<(numberOfParticles - 1)<<endl;
+    for(int i = 0; i < numberOfParticles - 1; ++i) {
+      bondInfo<<i<<" "<<(i + 1)<<" 1000.0 0.01"<<endl;
+    }
+    %! codeinsert: cableFixedBonds
+  }
+
+  %! codeinsert: angularForcesFile
+
+  %! codeinsert: stringBondInteractor
+
+  %! codeinsert: stringAddInteractor
+
+  %! codeinsert: angularForces
+
+  %! codeinsert: gravityInteraction
+
+  std::string outputFile = "cable.dat";
+  std::ofstream out(outputFile);
+
+  %! codeinsert: cableNumberOfSteps
+
+  %! codeinsert: integrate
+
+  sys->finish();
+
+  return 0;
+}
+%! codeend
+\end{lstlisting}
+\end{comment}
+
+Figure \ref{cable} shows the result of running the cable program. When compared
+to Figure \ref{swingingRope}, you can clearly see we have increased our chain's
+aversion to bending.
+
+\begin{figure}
+  \centering
+  \includegraphics[width = 0.6 \textwidth]{figures/cable.eps}
+  \caption{\label{cable}101 particles simulating a flexible cable bending under 
+           its own weight. The leftmost tenth of the cable was held in place 
+           with fixed-point bonds.}
+\end{figure}
+
 
 \begin{figure}
   \centering
@@ -607,6 +763,8 @@ List of programs written in this chapter:
 * `vibratingString.cu`: A chain of particles linked by harmonic springs and held
    tight at the ends behaving like a vibrating string.
 * `swingingRope.cu`: A chain of particles simulating a rope hanging from one of
-   its ends, swinging back and forth.
+   its ends, swinging back and forth in a gravitational field.
+* `cable.cu`: A chain of particles simulating a flexible cable bending under its
+   own weight.
 %! codeblockend
 \end{comment}

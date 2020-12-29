@@ -21,4 +21,6 @@
 * `vibratingString.cu`: A chain of particles linked by harmonic springs and held
    tight at the ends behaving like a vibrating string.
 * `swingingRope.cu`: A chain of particles simulating a rope hanging from one of
-   its ends, swinging back and forth.
+   its ends, swinging back and forth in a gravitational field.
+* `cable.cu`: A chain of particles simulating a flexible cable bending under its
+   own weight.
