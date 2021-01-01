@@ -850,9 +850,9 @@ This time, I carried out a longer time integration.
   \centering
   \includegraphics[width = \textwidth]{figures/curlyWire.eps}
   \caption{\label{curlyWire}Top and side view of the final state of the curly
-           wire simulation. The dashed line marks the initial state of the
-           wire, while the grey line presents the final state when you
-           deactivate the torsional potentials.}
+           wire simulation (dark solid line). The dashed line marks the initial
+           state of the wire, while the grey line presents the final state when
+           you deactivate the torsional potentials.}
 \end{figure}
 
 Figure \ref{curlyWire} compares the initial and final state of the wire after
@@ -989,9 +989,9 @@ The item at the top of the list would come out as follows:
 %! codeblockend
 \end{lstlisting}
 In the file listing the bonds, we would like to begin with the number of bonds,
-followed by rows of $i$, $j$, $D_e$, $a$, $r0$, by analogy with previous bond
-data. UAMMD assumes this layout, but does not know how many parameters you will
-need to read for your particular type of bond, nor the right order. This we
+followed by rows of $i$, $j$, $D_e$, $a$, and $r0$, by analogy with previous
+bond data. UAMMD assumes this layout, but does not know how many parameters you
+will need to read for your particular type of bond, nor the right order. This we
 specify in a \texttt{readBond} function.
 \begin{lstlisting}
 %! codeblock: MorseReadBonds
@@ -1045,7 +1045,8 @@ replacing the \texttt{BondedType::Harmonic} with our \texttt{Morse}.
     using MorseBonds = BondedForces<Morse>;
     MorseBonds::Parameters bondParameters;
     bondParameters.file = "data.bonds";
-    auto bonds = make_shared<MorseBonds>(particles, sys, bondParameters);
+    auto bonds = make_shared<MorseBonds>(particles, sys,
+                                         bondParameters);
 
     integrator->addInteractor(bonds);
   }
@@ -1073,13 +1074,106 @@ made the code divide by zero, outputting a \texttt{nan} (\textit{not a number})
 that caused an avalanche of \texttt{nan}s in the computations. To avoid the
 problem, I began with the whole chain shifted slightly to the right.
 \begin{lstlisting}
+%! codeblock: MorseChainInitialConditions
       position[i].x = (1 + i)*(ropeLength/(numberOfParticles - 1));
+%! codeblockend
 \end{lstlisting}
+
+\begin{comment}
+The Morse chain code copies swingingRope.cu, with the few changes indicated 
+above.
+\begin{lstlisting}
+%! codefile: code/MorseChain.cu
+# include "uammd.cuh"
+# include "utils/InitialConditions.cuh"
+# include "Interactor/BondedForces.cuh"
+# include "Interactor/ExternalForces.cuh"
+# include "Integrator/VerletNVE.cuh"
+
+using namespace uammd;
+using std::make_shared;
+using std::endl;
+
+%! codeinsert: MorsePotential
+
+%! codeinsert: gravityDefinition
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  int numberOfParticles = 101;
+  auto particles
+    = make_shared<ParticleData>(numberOfParticles, sys);
+
+  {
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
+    auto velocity
+      = particles->getVel(access::location::cpu,
+                          access::mode::write);
+    auto mass
+      = particles->getMass(access::location::cpu,
+                          access::mode::write);
+
+    real ropeLength = real(1.0);
+    for(int i = 0; i < numberOfParticles; ++i) {
+      %! codeinsert: MorseChainInitialConditions
+      position[i].y = position[i].z = position[i].w = real(0.0);
+      velocity[i].x = velocity[i].y = velocity[i].z = real(0.0);
+      mass[i] = real(0.001);
+    }
+  }
+
+  using Verlet = VerletNVE;
+  Verlet::Parameters VerletParams;
+  VerletParams.dt = real(0.00001);
+  VerletParams.initVelocities=false;
+
+  %! codeinsert: Verlet src: chapters/first_simulation.tex
+
+  {
+    std::ofstream bondInfo("data.bonds");
+    if(not bondInfo.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.bonds file. Halting program.");
+      exit(-1);
+    }
+
+    %! codeinsert: MorseBondFile
+  }
+
+  %! codeinsert: MorseInteraction
+
+  %! codeinsert: gravityInteraction
+
+  std::string outputFile = "MorseChain.dat";
+  std::ofstream out(outputFile);
+
+  int numberOfSteps = 150000;
+  int printEverynSteps = 5000;
+
+  %! codeinsert: integrate
+
+  sys->finish();
+
+  return 0;
+}
+%! codeend
+\end{lstlisting}
+\end{comment}
 
 \begin{figure}
   \centering
-  
+  \includegraphics[width = 0.6 \textwidth]{figures/MorseChain.eps}
+  \caption{\label{MorseChain} A chain of particles linked and attached to the 
+           origin with Morse potentials swings under its own weight and ends up 
+           breaking off and falling (\textit{time step}: $10^{-5}$, 
+           $1.5 \times 10^5$ steps, printing out every $5 \times 10^3$).}
 \end{figure}
+
+When the simulation runs, the fixed-point bond snaps as the chain of particles
+swings around (Figure \ref{MorseChain}). 
 
 \section{Classical planetary orbits}
 
