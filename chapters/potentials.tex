@@ -1,4 +1,4 @@
-/%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                                                                              %
 %            A Painless Introduction to Programming UAMMD Modules              %
 %                    Chapter 2: Unleash your own potential                     %
@@ -513,8 +513,8 @@ that a bond between particles $i$ and $j$ means between $i$ and the closest
 periodic image of $j$ and viceversa. These types of bonds were named HarmonicPBC
 and FENEPBC in UAMMD.
 
-The final part of this chapter explains how to define your own bond types, after
-the following section on angular potentials.
+This chapter explains how to define your own bond types later on, after the
+following section on angular potentials.
 
 \section{Angular potentials}
 
@@ -946,11 +946,142 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
-\section{Classical orbits}
+\section{Custom bonds}
 
-\section{Defining your own potentials}
+At least in theory, neither harmonic nor FENE bonds break, no matter how hard
+you pull on them. In contrast, the Morse potential, used to model diatomic
+molecules and some polymer chains, does allow linked particles to break free.
+UAMMD has no default Morse bond potential, so let me implement it for you, and 
+you'll see how to create your own bonds.
 
-Bond potentials
+Like Harmonic bonds, the Morse potential depends on the distance $r$ between 
+bonded particles, but three parameters determine its shape, instead of two.
+\begin{equation*}
+  V(r) = D_e\left(\left(e^{-a(r - r_0)} - 1\right)^2 - 1\right).
+\end{equation*}
+$D_e$ marks the depth of the potential, $a$ determines its width, and $r_0$ the
+equilibrium distance. As we did with gravity, we create a new data structure
+before \texttt{main}, opening with
+\begin{lstlisting}
+%! codeblock: MorsePotential
+struct Morse {
+%! codeinsert: MorseParameters
+%! codeinsert: MorseReadBonds
+%! codeinsert: MorseEnergy
+%! codeinsert: MorseForce
+%! codeblockend
+\end{lstlisting}
+The data structure must contain four items:
+\begin{enumerate}
+  \item A list of the parameter variables that define the bond, packed into a
+        data structure.
+  \item A function detailing how to read the bond parameter values from a file.
+  \item A function for the energy as a function of the inter-particle 
+        separation.
+  \item The force due to the interaction.
+\end{enumerate}
+The item at the top of the list would come out as follows:
+\begin{lstlisting}
+%! codeblock: MorseParameters
+  struct BondInfo {
+    real De, a, r0;
+  };
+%! codeblockend
+\end{lstlisting}
+In the file listing the bonds, we would like to begin with the number of bonds,
+followed by rows of $i$, $j$, $D_e$, $a$, $r0$, by analogy with previous bond
+data. UAMMD assumes this layout, but does not know how many parameters you will
+need to read for your particular type of bond, nor the right order. This we
+specify in a \texttt{readBond} function.
+\begin{lstlisting}
+%! codeblock: MorseReadBonds
+  static __host__ BondInfo readBond(std::istream &in) {
+    BondInfo MorseParams;
+    in>>MorseParams.De>>MorseParams.a>>MorseParams.r0;
+    return MorseParams;
+  }
+%! codeblockend
+\end{lstlisting}
+The energy function calculates $V(r)$, according to the aforementioned Morse
+potential.
+\begin{lstlisting}
+%! codeblock: MorseEnergy
+  inline __device__ real energy(int i, int j,
+                                 const real3 &r12,
+                                 const BondInfo &MorseParams) {
+    real r = sqrtf(dot(r12, r12));
+    real oneminusexpar
+      = real(1.0) - exp(-MorseParams.a*(r - MorseParams.r0));
+    return MorseParams.De*(oneminusexpar*oneminusexpar - real(1.0));
+  }
+%! codeblockend
+\end{lstlisting}
+Finally, we close our \texttt{Morse} data structure with the force, which equals 
+the negative gradient of the energy,
+\begin{equation*}
+  \mathbf{F}(\mathbf{r})
+    = -\nabla V(r)
+    = 2 D_e a \left(e^{-a(r - r_0)} - 1\right)
+              e^{-a(r - r0)}\ \frac{\mathbf{r}}{r}.
+\end{equation*}
+\begin{lstlisting}
+%! codeblock: MorseForce
+  inline __device__ real3 force(int i, int j,
+                                const real3 &r12,
+                                const BondInfo &MorseParams) {
+    real r = sqrtf(dot(r12, r12));
+    real expar = exp(-MorseParams.a*(r - MorseParams.r0));
+    return (2*MorseParams.De*MorseParams.a*(expar - 1)*expar/r)*r12;
+  }
+};
+%! codeblockend
+\end{lstlisting}
+
+To incorporate our new interaction, proceed as with the Harmonic bonds, but
+replacing the \texttt{BondedType::Harmonic} with our \texttt{Morse}.
+\begin{lstlisting}
+%! codeblock: MorseInteraction
+  {
+    using MorseBonds = BondedForces<Morse>;
+    MorseBonds::Parameters bondParameters;
+    bondParameters.file = "data.bonds";
+    auto bonds = make_shared<MorseBonds>(particles, sys, bondParameters);
+
+    integrator->addInteractor(bonds);
+  }
+%! codeblockend
+\end{lstlisting}
+
+As a test, I swapped the bonds in the swinging rope simulation with our newer 
+design. I had to remember to change the data written to the \texttt{data.bonds} 
+file.
+\begin{lstlisting}
+%! codeblock: MorseBondFile
+    real De = 0.025, a = 200.0, r0 = 0.01;
+    bondInfo<<(numberOfParticles - 1)<<endl;
+    for(int i = 0; i < numberOfParticles - 1; ++i) {
+      bondInfo<<i<<" "<<(i + 1)<<" "
+              <<De<<" "<<a<<" "<<r0<<endl;
+    }
+    bondInfo<<"1"<<endl;
+    bondInfo<<"0 0 0 0 "<<De<<" "<<a<<" "<<r0<<endl;
+%! codeblockend
+\end{lstlisting}
+Written in this way, the simulation would still not work because of particle 
+$0$, which begins at the origin, making $r = 0$ for the fixed-point bond. This
+made the code divide by zero, outputting a \texttt{nan} (\textit{not a number})
+that caused an avalanche of \texttt{nan}s in the computations. To avoid the
+problem, I began with the whole chain shifted slightly to the right.
+\begin{lstlisting}
+      position[i].x = (1 + i)*(ropeLength/(numberOfParticles - 1));
+\end{lstlisting}
+
+\begin{figure}
+  \centering
+  
+\end{figure}
+
+\section{Classical planetary orbits}
 
 Pair interactions
 
