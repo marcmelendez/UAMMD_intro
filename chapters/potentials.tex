@@ -498,6 +498,7 @@ Within UAMMD, code for FENE bonds parallels that of harmonic bonds, but with a
 different type, so you would define them with
 \begin{lstlisting}
     using FENEBonds = BondedForces<BondedType::FENE>;
+%!
 \end{lstlisting}
 When experimenting with FENE bonds, remember that linked particles must start
 off with a separation smaller than $r_0$.
@@ -520,8 +521,8 @@ following section on angular potentials.
 
 How do you transform a rope into a flexible rod in UAMMD? Probably the easiest
 route simply adds more bonds. Instead of connecting particles in a line only to
-their nearest neighbours, connect them also to particles lying farther away.
-This approach is known as building an elastic network, and has many practical
+their nearest neighbours, connect them also to particles lying farther. This
+approach is known as building an elastic network, and has many practical
 applications.
 
 Now imagine a molecule formed by atoms labelled $i$, $j$ and $k$, as in Figure
@@ -543,17 +544,17 @@ as it should.
   \centering
   \includegraphics[width = 0.5 \textwidth]{figures/angularSprings.eps}
   \caption{\label{angularPotential}Angular potentials cause forces on a triplet
-           of particles when the angle they form differs from some established
-           equilibrium angle.}
+           of particles when the angle $\theta$ they form differs from some 
+           established equilibrium angle.}
 \end{figure}
 
-We set angular potentials indicating the labels of the three particles involved,
-$i$, $j$ and $k$, the rigidity $K$ and the equilibrium angle $\theta_0$. When
-the particles form an angle $\theta \neq \theta_0$, they feel a force that tends
-to restore $\theta$ back to $\theta_0$. The angular potentials file would start
-with the number of triplets on the first line, followed by rows in which you
-specify $i$, $j$, $k$, $K$ and $\theta_0$, in that order. So a file with two
-angular potentials could look like this
+We can set up \textit{angular} potentials indicating the labels of the three 
+particles involved, $i$, $j$ and $k$, the rigidity $K$ and the equilibrium angle 
+$\theta_0$. When the particles form an angle $\theta \neq \theta_0$, they feel a 
+force that tends to restore $\theta$ back to $\theta_0$. The angular potentials 
+file would start with the number of triplets on the first line, followed by rows 
+in which you specify $i$, $j$, $k$, $K$ and $\theta_0$, in that order. So a file 
+with two angular potentials could look like this:
 \begin{lstlisting}
 2
 0 1 2 100 0
@@ -614,7 +615,7 @@ consecutive particles with $K = 2.0$ and $\theta_0 = 0$.
 %! codeblockend
 \end{lstlisting}
 
-If we link our UAMMD module to the relevant header,
+If we connect our UAMMD module to the relevant header,
 \begin{lstlisting}
 # include "Interactor/AngularBondedForces.cuh"
 %!
@@ -1007,9 +1008,9 @@ potential.
 \begin{lstlisting}
 %! codeblock: MorseEnergy
   inline __device__ real energy(int i, int j,
-                                 const real3 &r12,
+                                 const real3 &rij,
                                  const BondInfo &MorseParams) {
-    real r = sqrtf(dot(r12, r12));
+    real r = sqrtf(dot(rij, rij));
     real oneminusexpar
       = real(1.0) - exp(-MorseParams.a*(r - MorseParams.r0));
     return MorseParams.De*(oneminusexpar*oneminusexpar - real(1.0));
@@ -1027,11 +1028,12 @@ the negative gradient of the energy,
 \begin{lstlisting}
 %! codeblock: MorseForce
   inline __device__ real3 force(int i, int j,
-                                const real3 &r12,
+                                const real3 &rij,
                                 const BondInfo &MorseParams) {
-    real r = sqrtf(dot(r12, r12));
+    real r = sqrtf(dot(rij, rij));
     real expar = exp(-MorseParams.a*(r - MorseParams.r0));
-    return (2*MorseParams.De*MorseParams.a*(expar - 1)*expar/r)*r12;
+    return real(2.0)*MorseParams.De*MorseParams.a
+                    *((expar - 1)*expar/r)*rij;
   }
 };
 %! codeblockend
@@ -1078,6 +1080,18 @@ problem, I began with the whole chain shifted slightly to the right.
       position[i].x = (1 + i)*(ropeLength/(numberOfParticles - 1));
 %! codeblockend
 \end{lstlisting}
+
+\begin{figure}
+  \centering
+  \includegraphics[width = 0.6 \textwidth]{figures/MorseChain.eps}
+  \caption{\label{MorseChain} A chain of particles linked and attached to the 
+           origin with Morse potentials swings under its own weight and ends up 
+           breaking off and falling (\textit{time step}: $10^{-5}$, 
+           $1.5 \times 10^5$ steps, printing out every $5 \times 10^3$).}
+\end{figure}
+
+When the simulation runs, the fixed-point bond snaps as the chain of particles
+swings around (Figure \ref{MorseChain}). 
 
 \begin{comment}
 The Morse chain code copies swingingRope.cu, with the few changes indicated 
@@ -1163,21 +1177,185 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
-\begin{figure}
-  \centering
-  \includegraphics[width = 0.6 \textwidth]{figures/MorseChain.eps}
-  \caption{\label{MorseChain} A chain of particles linked and attached to the 
-           origin with Morse potentials swings under its own weight and ends up 
-           breaking off and falling (\textit{time step}: $10^{-5}$, 
-           $1.5 \times 10^5$ steps, printing out every $5 \times 10^3$).}
-\end{figure}
+\section{Custom pair potentials}
 
-When the simulation runs, the fixed-point bond snaps as the chain of particles
-swings around (Figure \ref{MorseChain}). 
+Our definition of Morse bond potentials describes the phenomenon of
+dissociation, but we wouldn't use it to produce bond formation. Particles $i$
+and $j$ would only link if the connection had been listed already in the
+\texttt{data.bonds} file. To allow bonds to form between any two candidate
+particles, we would be much better off coding the Morse potential as a pair
+interaction.
 
-\section{Classical planetary orbits}
+Starting from our Lennard-Jones code written in the previous chapter, let us 
+replace the pair potential with a Morse interaction. We will again capture the
+interaction within a data structure, beginning with the parameters and a 
+constructor to assign their values. Before the main function, we write the 
+following.
+\begin{lstlisting}
+%! codeblock: MorsePairPotential
+struct Morse {
+  real De, a, r0, rc;
 
-Pair interactions
+  Morse(real i_De, real i_a, real i_r0, real i_rc):
+       De(i_De), a(i_a), r0(i_r0), rc(i_rc){}
+  %! codeinsert: getCutOff
+  %! codeinsert: ForceEnergy
+  %! codeinsert: getTransverser
+%! codeblockend
+\end{lstlisting}
+Pair potentials must include a function called \texttt{getCutOff} that returns
+the range of the potential interaction.
+\begin{lstlisting}
+%! codeblock: getCutOff
+  real getCutOff() { return rc; }
+%! codeblockend
+\end{lstlisting}
+
+Next, we come to our first definition of a \textit{transverser}, a key concept 
+in the UAMMD infrastructure, likely named after the action of traversing a list 
+(the word \textit{traverser} apparently didn't sound cool enough, though). 
+You'll understand the idea easily. For each particle, we wish to apply a 
+function to each particle-neighbour pair. In this case, we wish to compute the 
+force and energy due to the interactions of a particle with each of its 
+neighbours.
+
+We'll define our transverser as a data structure that begins setting the values
+of the parameters.
+\begin{lstlisting}
+%! codeblock: ForceEnergy
+  struct ForceEnergy {
+    real4 * force;
+    real * energy;
+    Box box;
+    real De, a, r0, rc;
+
+    ForceEnergy(Box i_box, real i_rc,
+                real4 * i_force, real * i_energy,
+                real i_De, real i_a, real i_r0):
+                box(i_box), rc(i_rc),
+                force(i_force), energy(i_energy),
+                De(i_De), a(i_a), r0(i_r0){}
+    %! codeinsert: compute_and_set
+%! codeblockend
+\end{lstlisting}
+It ends with two functions, one computes the force and energy for each pair 
+interaction, according to the Morse potential, and the other specifies what to 
+do with the results.
+\begin{lstlisting}
+%! codeblock: compute_and_set
+    __device__ real4 compute(real4 ri, real4 rj){
+      const real3 rij = box.apply_pbc(make_real3(rj)-make_real3(ri));
+      const real r2 = dot(rij, rij);
+      const real r = sqrtf(r2);
+      if(r2 > 0 and r < rc){
+        const real expar = exp(-a*(r - r0));
+        const real oneminusexpar = real(1.0) - expar;
+        return make_real4(-2.0*De*a*((expar - 1)*expar/r)*rij,
+                          De*(oneminusexpar*oneminusexpar - real(1.0)));
+      }
+      return real4();
+    }
+
+    __device__ void set(int id, real4 total){
+      force[id] += make_real4(total.x, total.y, total.z, 0);
+      energy[id] += total.w;
+    }
+  };
+%! codeblockend
+\end{lstlisting}
+There are additional functions designed to tweak the behaviour of your 
+transversers, but we won't need them for the time being.
+
+Finally, the containing \texttt{Morse} structure ends with a function that 
+returns the \texttt{ForceEnergy} transverser just defined, setting the values of 
+the parameters and the references to the force and energy lists.
+\begin{lstlisting}
+%! codeblock: getTransverser
+  ForceEnergy getForceTransverser(Box box, std::shared_ptr<ParticleData> sys){
+    auto force = sys->getForce(access::location::gpu,
+                               access::mode::readwrite).raw();
+    auto energy = sys->getEnergy(access::location::gpu,
+                                 access::mode::readwrite).raw();
+    return ForceEnergy(box, rc, force, energy, De, a, r0);
+  }
+};
+%! codeblockend
+\end{lstlisting}
+
+That defined a new pair potential. You can probably imagine what comes next.
+Adding the new interaction to the Verlet integrator follows the usual rules.
+\begin{lstlisting}
+%! codeblock: addMorsePairPotential
+  real De = real(1.0);
+  real a = real(2.0);
+  real r0 = real(1.0);
+  real rc = real(6.5)*r0;
+
+  auto MorsePotential = make_shared<Morse>(De, a, r0, rc);
+  {
+    using MorseForces = PairForces<Morse>;
+    MorseForces::Parameters interactionParams;
+    interactionParams.box = box;
+
+    auto interaction
+      = make_shared<MorseForces>(particles, sys,
+                              interactionParams,
+                              MorsePotential);
+
+    integrator->addInteractor(interaction);
+  }
+%! codeblockend
+\end{lstlisting}
+
+\begin{comment}
+The Morse interaction module replicates the Lennard-Jones code from chapter one,
+replacing the interaction with the Morse potential defined in this section.
+\begin{lstlisting}
+%! codefile: code/Morse.cu
+# include "uammd.cuh"
+# include "utils/InitialConditions.cuh"
+# include "Interactor/Potential/Potential.cuh"
+# include "Interactor/NeighbourList/CellList.cuh"
+# include "Interactor/PairForces.cuh"
+# include "Integrator/VerletNVE.cuh"
+
+using namespace uammd;
+using std::make_shared;
+using std::endl;
+
+%! codeinsert: MorsePairPotential
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  %! codeinsert: particleData src: chapters/first_simulation.tex
+
+  %! codeinsert: latticeInitialConditions src: chapters/first_simulation.tex
+
+  %! codeinsert: VerletParams src: chapters/first_simulation.tex
+
+  %! codeinsert: Verlet src: chapters/first_simulation.tex
+
+  %! codeinsert: addMorsePairPotential
+
+  std::string outputFile = "Morse.dat";
+  std::ofstream out(outputFile);
+
+  int numberOfSteps = 1000;
+  int printEverynSteps = 100;
+
+  %! codeinsert: integration src: chapters/first_simulation.tex
+
+  sys->finish();
+
+  return 0;
+}
+%! codeend
+\end{lstlisting}
+\end{comment}
+
+\section{The curve-hopping problem}
 
 \begin{comment}
 List of programs written in this chapter:
@@ -1190,5 +1368,8 @@ List of programs written in this chapter:
    own weight.
 * `curlyWire.cu`: A chain of particles behaving like a curly wire bending due to
    angular and torsional forces.
+* `MorseChain.cu`: A chain of particles connected with Morse bond potentials and
+   attached to the origin in a uniform gravitational field.
+* `Morse.cu`: Particles in a periodic box interacting through a Morse potential.
 %! codeblockend
 \end{comment}

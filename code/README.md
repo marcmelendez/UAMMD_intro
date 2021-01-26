@@ -26,3 +26,6 @@
    own weight.
 * `curlyWire.cu`: A chain of particles behaving like a curly wire bending due to
    angular and torsional forces.
+* `MorseChain.cu`: A chain of particles connected with Morse bond potentials and
+   attached to the origin in a uniform gravitational field.
+* `Morse.cu`: Particles in a periodic box interacting through a Morse potential.
