@@ -22,11 +22,11 @@
 \usepackage{listings}
 \lstset{language = C++,
         frame = single,
-        framextopmargin = \baselineskip,
+        framextopmargin = \smallskipamount,
         morecomment = [is]{\%!}{\^^M},
         basicstyle = \footnotesize,
-        breaklines=true,
-        postbreak=\mbox{$\hookrightarrow$\ }}
+        breaklines = true,
+        postbreak = \mbox{$\hookrightarrow$\ }}
 \makeatletter
 \lst@AddToHook{OnEmptyLine}{\vspace{\dimexpr-\baselineskip+\smallskipamount}}
 \makeatother

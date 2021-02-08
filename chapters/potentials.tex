@@ -286,7 +286,8 @@ struct gravitationalForce{
 Now, between the declaration of $g$ and the closing bracket, we will insert the
 four items listed above, beginning with a function that initialises the force.
 It should only do one thing, take the numerical value given to $g$ and assign it
-to the variable \texttt{g}. We can code it as an empty function.
+to the variable \texttt{g}. We can code it as an empty function. This type of 
+function is known as a constructor and is named like the data structure.
 \begin{lstlisting}
 %! codeblock: gravityConstructor
   gravitationalForce(real numericalValueOfg):g(numericalValueOfg){}
@@ -341,7 +342,7 @@ velocities, we must also define the mass of each element in the rope.
       = particles->getMass(access::location::cpu,
                           access::mode::write);
 
-    real ropeLength = real(1.0);
+    real ropeLength = 1.0;
     for(int i = 0; i < numberOfParticles; ++i) {
       position[i].x = i*(ropeLength/(numberOfParticles - 1));
       position[i].y = position[i].z = position[i].w = real(0.0);
@@ -351,10 +352,11 @@ velocities, we must also define the mass of each element in the rope.
   }
 %! codeblockend
 \end{lstlisting}
-It does not matter much whether you write the numerical values as \texttt{1.0}
-or \texttt{real(1.0)} here. I recommend you get used to the second option in
-UAMMD. It will help the compiler speed up your code by casting the floating
-point number to the right precision.
+
+It does not matter much whether you write the constant numerical values as 
+\texttt{0.0} or \texttt{real(0.0)} here. I recommend you get used to the second 
+option in UAMMD. It will help the compiler speed up your code by casting the 
+floating point number to the right precision.
 
 To create the gravitational interaction and add it to the integrator, follow the
 standard procedure.
@@ -493,7 +495,7 @@ to
     \end{cases}
 \end{equation*}
 Furthermore, note that $V(r)$ diverges as $r$ approaches $r_0$. This guarantees
-that particles will never separate further than $r_0$ as long as you choose
+that particles will never separate farther than $r_0$ as long as you choose
 small enough integration time steps.
 
 Within UAMMD, code for FENE bonds parallels that of harmonic bonds, but with a
@@ -578,7 +580,7 @@ fixed-point bonds, and let gravity bend the rest of the cable.
 %! codeblock: cableFixedBonds
     bondInfo<<"10"<<endl;
 
-    real cableLength = real(1.0);
+    real cableLength = 1.0;
     for(int i = 0; i < 10; ++i)
       bondInfo<<i<<" "<<i*(cableLength/(numberOfParticles - 1))<<" 0 0 1000.0 0.0"<<endl;
 %! codeblockend
@@ -1133,7 +1135,7 @@ int main(int argc, char *argv[]){
       = particles->getMass(access::location::cpu,
                           access::mode::write);
 
-    real ropeLength = real(1.0);
+    real ropeLength = 1.0;
     for(int i = 0; i < numberOfParticles; ++i) {
       %! codeinsert: MorseChainInitialConditions
       position[i].y = position[i].z = position[i].w = real(0.0);
@@ -1295,10 +1297,10 @@ That defined a new pair potential. You can probably imagine what comes next.
 Adding the new interaction to the Verlet integrator follows the usual rules.
 \begin{lstlisting}
 %! codeblock: addMorsePairPotential
-  real De = real(1.0);
-  real a = real(2.0);
-  real r0 = real(1.0);
-  real rc = real(6.5)*r0;
+  real De = 1.0;
+  real a = 2.0;
+  real r0 = 1.0;
+  real rc = 6.5*r0;
 
   auto MorsePotential = make_shared<Morse>(De, a, r0, rc);
   {
@@ -1393,15 +1395,15 @@ up a list of bonds with as many entries as particles. We'll mark unbound
 particles with $-1$ and bound particles with the other particle's ID. Hence, 
 if particle 0 were free and particle 1 were bound to particle 2, we would have
 \texttt{bonds[0] = -1}, \texttt{bonds[1] = 2} and \texttt{bonds[2] = 1}. Bonds 
-will dissolve as soon as the particles separate further than the cut-off radius.
+will dissolve as soon as the particles separate farther than the cut-off radius.
 
 Quite straightforward, but hang on. Let us discuss bond formation first. Let two 
 particles bind when they lie within the cut-off range without being already 
 connected to some other particle. This means that as soon as you decide to link 
 particles $i$ and $j$, they cease to count as candidate partners for others. A 
-na\"ive implementation of this condition will lead to inconsistencies because 
-two nearby particles might to bond to a third. We therefore need a new algorithm 
-to deal with bond creation.
+na\"ive parallel implementation of this condition will lead to inconsistencies 
+because two nearby particles might try to bond to a third at the same time. We 
+therefore need a new algorithm to deal with bond creation.
 
 We're not done yet, though. When a bond breaks, the atoms involved will try to 
 form new ones and will sometimes encounter other atoms already within bonding 
@@ -1410,9 +1412,406 @@ the Morse potential in a sudden unjustified jump of the mechanical energy. To
 compensate for the difference, we can adjust the speeds of the newly linked 
 atoms, transforming the difference in potential energy into kinetic energy.
 
-%% Is it worth it?
+With the project laid out before us, we inevitably have to face the question of 
+whether it's worth the effort. UAMMD might provide a significant improvement on 
+speed, but only if we come up with efficient algorithms dealing with the bonds. 
+If you trust your theoretical knowledge and programming skills enough to carry 
+out such a feat, then I believe you should seriously consider learning some CUDA 
+and writing your simulation from scratch. Remember the open source nature of 
+UAMMD. You can always copy whatever code you find useful there.
 
-%% Add diatomic.cu to code list.
+In the spirit of keeping this introduction as painless as possible, I will write 
+a very inefficient but simpler simulation for our diatomic molecules. The 
+program, as presented below, ran for days on my home computer, even though I 
+lowered the number of particles to only one thousand.
+\begin{lstlisting}
+%! codeblock: diatomicParticleData
+  int numberOfParticles = 1000;
+  auto particles
+    = make_shared<ParticleData>(numberOfParticles, sys);
+%! codeblockend
+\end{lstlisting}
+and decrease the initial energies.
+\begin{lstlisting}
+%! codeblock: diatomicInitialEnergy
+  VerletParams.energy = 0.001;
+%! codeblockend
+\end{lstlisting}
+Next, following the initialisation of positions, we will set the values of the 
+atomic masses (as we will need them to adjust the speeds after any potential 
+curve hopping).
+\begin{lstlisting}
+%! codeblock: diatomicSetMass
+{
+    auto mass
+      = particles->getMass(access::location::cpu,
+                           access::mode::write);
+    real atomicMass = 1.0;
+    std::fill(mass.begin(), mass.end(), atomicMass);
+}
+%! codeblockend
+\end{lstlisting}
+Finally, before we turn to writing the new pair potential, let us update the 
+code that adds it to the integrator. Now we will obviously have to provide the 
+extra parameters \texttt{sigma} and \texttt{epsilon} for the Lennard-Jones 
+forces.
+\begin{lstlisting}
+%! codeblock: addDiatomicPairPotential
+  real De = 1.0;
+  real a = 2.0;
+  real r0 = 1.0;
+  real sigma = 1.0;
+  real epsilon = 1.0;
+  real rc = 6.5*r0;
+
+  auto diatomicPotential
+   = make_shared<diatomic>(De, a, r0, sigma, epsilon, rc, box);
+  {
+    using diatomicForces = PairForces<diatomic>;
+    diatomicForces::Parameters interactionParams;
+    interactionParams.box = box;
+
+    auto interaction
+      = make_shared<diatomicForces>(particles, sys,
+                                    interactionParams,
+                                    diatomicPotential);
+
+    integrator->addInteractor(interaction);
+  }
+
+  std::string outputFile = "diatomic.dat";
+  std::ofstream out(outputFile);
+
+  int numberOfSteps = 100000;
+  int printEverynSteps = 100;
+%! codeblockend
+\end{lstlisting}
+Furthermore, before UAMMD calculates the interactions, it has to work out where 
+to place the bonds. Right above the call to \texttt{integrator->forwardTime()}, 
+we'll add a call to a function that we will write later on.
+\begin{lstlisting}
+%! codeblock: createDiatomicBonds
+    diatomicPotential->createBonds(particles, sys);
+%! codeblockend
+\end{lstlisting}
+
+That concludes the changes to the main function in our Morse pair potential 
+simulations. We still have a few pages of code ahead, though. The definition of 
+our new potential must incorporate variables for the Lennard-Jones force 
+parameters. Let us change the head of the Morse potential to the following 
+lines.
+\begin{lstlisting}
+%! codeblock: diatomicVariables
+struct diatomic {
+  real De, a, r0, rc;
+  real sigma, epsilon;
+  Box box;
+  thrust::device_vector<int> bonds;
+%! codeblockend
+\end{lstlisting}
+The \texttt{bonds} vector will contain the list of partner ID numbers mentioned 
+above, with \texttt{-1} standing for no bond. The \texttt{getCutOff} obviously 
+needs no changes, but the constructor should include the new parameter values.
+\begin{lstlisting}
+%! codeblock: diatomicConstructor
+  diatomic(real i_De, real i_a, real i_r0,
+           real i_sigma, real i_epsilon,
+           real i_rc, Box i_box):
+       De(i_De), a(i_a), r0(i_r0),
+       sigma(i_sigma), epsilon(i_epsilon),
+       rc(i_rc), box(i_box) {}
+%! codeblockend
+\end{lstlisting}
+Now we can write a function to sort out the bonds. Assume that the simulation 
+begins without bonds. We resize the bonds vector to the number of particles and 
+fill it with negative values. This call will only have an effect the first time 
+around because we won't change the number of particles.
+\begin{lstlisting}
+%! codeblock: diatomicCreateBonds
+  void createBonds(std::shared_ptr<ParticleData> particles,
+                   std::shared_ptr<System> sys){
+
+    int numberOfParticles = particles->getNumParticles();
+
+    bonds.resize(numberOfParticles, -1);
+    int * bondlist = thrust::raw_pointer_cast(bonds.data());
+    %! codeinsert: diatomicParticleInfo
+    %! codeinsert: diatomicBreakBonds
+    %! codeinsert: diatomicFormBonds
+%! codeblockend
+\end{lstlisting}
+The \texttt{createBonds} function needs information from particleData: the
+positions, velocities, masses, ID numbers and indices.
+\begin{lstlisting}
+%! codeblock: diatomicParticleInfo
+  	{
+      auto position
+        = particles->getPos(access::location::cpu,
+                            access::mode::read);
+      auto velocity
+        = particles->getVel(access::location::cpu,
+                            access::mode::readwrite);
+      auto mass
+        = particles->getMass(access::location::cpu,
+                             access::mode::read);
+      auto id
+        = particles->getId(access::location::cpu,
+                           access::mode::read);
+      auto index
+        = particles->getIdOrderedIndices(access::location::cpu);
+%! codeblockend
+\end{lstlisting}
+Now we will look for broken bonds, that is, linked particles that have separated 
+farther than $r_c$. If they have strayed enough from each other, we set their
+bond indices to $-1$.
+\begin{lstlisting}
+%! codeblock: diatomicBreakBonds
+      for(int i = 0; i < numberOfParticles; ++i) {
+        int j = bonds[id[i]];
+        if(j >= 0) {
+          const real3 rij
+            = box.apply_pbc(make_real3(position[index[j]])
+                            - make_real3(position[i]));
+          const real r2 = dot(rij, rij);
+          if(r2 > rc*rc) {
+            bonds[j] = bonds[id[i]] = -1;
+          }
+        }
+      }
+%! codeblockend
+\end{lstlisting}
+You should find the loop above easy enough to understand and, with some basic 
+knowledge of CUDA, easy to parallelise.
+
+The following chunk of code works out bond formation. It presents the simplest 
+way (that I can think of) to bind particles without generating inconsistencies. 
+Unfortunately, simplicity comes at the cost of being terribly inefficient. If 
+you ever wanted to use this example for a serious simulation, the following 
+section should be the first to improve. Neighbour lists algorithms provide an 
+excellent way to speed up the calculations, but explaining how they work here 
+would lead us too far astray.
+
+The double loop below inspects all pairs of unbound particles and derives the 
+(squared) distance between them.
+\begin{lstlisting}
+%! codeblock: diatomicFormBonds
+      for(int i = 0; i < numberOfParticles - 1; ++i) {
+        if(bonds[id[i]] >= 0) continue;
+        const real3 ri = make_real3(position[i]);
+        for(int j = i + 1; j < numberOfParticles; ++j) {
+          if(bonds[id[j]] >= 0) continue;
+          const real3 rij
+            = box.apply_pbc(make_real3(position[j]) - ri);
+          const real r2 = dot(rij, rij);
+  %! codeinsert: diatomicLinkAtoms
+  %! codeinsert: diatomicCurveHopping
+%! codeblockend
+\end{lstlisting}
+As soon as it finds particles within the right range, it links them.
+\begin{lstlisting}
+%! codeblock: diatomicLinkAtoms
+          if(r2 <= rc*rc) {
+            bonds[id[j]] = id[i];
+            bonds[id[i]] = id[j];
+%! codeblockend
+\end{lstlisting}
+The \texttt{createBonds} function ends by working out the difference in 
+potential energy due to the curve hopping and adjusting the velocitites in such 
+a way that the system conserves the total energy and linear momentum.
+\begin{lstlisting}
+%! codeblock: diatomicCurveHopping
+            const real r = sqrtf(r2);
+            const real expar = exp(-a*(r - r0));
+            const real oneminusexpar = real(1.0) - expar;
+            const real invr2 = (sigma*sigma)/r2;
+            const real invr6 = invr2*invr2*invr2;
+            const real deltaE = 4*epsilon*invr6*(invr6 - real(1.0))
+                                - De*(oneminusexpar*oneminusexpar - real(1.0));
+            if(deltaE >= 0) {
+              velocity[i] += sqrtf(deltaE/mass[i])*rij/r;
+              velocity[j] -= sqrtf(deltaE/mass[j])*rij/r;
+            } else {
+              velocity[i] -= sqrtf(-deltaE/mass[i])*rij/r;
+              velocity[j] += sqrtf(-deltaE/mass[j])*rij/r;
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+%! codeblockend
+\end{lstlisting}
+
+We still have to write the \texttt{ForceEnergy} transverser and the 
+\texttt{getForceTransverser} method. The first of these requires much more 
+information than in the previous section.
+\begin{lstlisting}
+%! codeblock: diatomicForceEnergy
+  struct ForceEnergy{
+    real4 * force;
+    real * energy;
+    Box box;
+    real De, a, r0, rc;
+    real sigma, epsilon;
+    int * bondlist;
+    int * id;
+
+    ForceEnergy(Box i_box, real i_rc,
+                real4 * i_force, real * i_energy,
+                real i_De, real i_a, real i_r0,
+                real i_sigma, real i_epsilon,
+                int * i_bondlist, int * i_id):
+                box(i_box), rc(i_rc),
+                force(i_force), energy(i_energy),
+                De(i_De), a(i_a), r0(i_r0),
+                sigma(i_sigma), epsilon(i_epsilon),
+                bondlist(i_bondlist), id(i_id){}
+  %! codeinsert: diatomicGetInfo
+  %! codeinsert: diatomicCompute
+%! codeblockend
+\end{lstlisting}
+In this case, we cannot compute the forces and energies exclusively from the 
+particle positions. We also need to know the particle IDs to identify linked
+atoms and choose the right potential. To solve the problem, we include a 
+function named \texttt{getInfo} which reads the particle index and returns its 
+ID.
+\begin{lstlisting}
+%! codeblock: diatomicGetInfo
+    __device__ int getInfo(int index){
+      return id[index];
+    }
+%! codeblockend
+\end{lstlisting}
+UAMMD will feed the output of \texttt{getInfo} into the latter two parameters of 
+the following \texttt{compute} function, which checks for bonds and chooses the 
+right interaction potential.
+\begin{lstlisting}
+%! codeblock: diatomicCompute
+    __device__ real4 compute(real4 ri, real4 rj, int id_i, int id_j){
+      const real3 rij = box.apply_pbc(make_real3(rj)-make_real3(ri));
+      const real r2 = dot(rij, rij);
+      if(r2 > 0 and r2 < rc*rc) {
+        if(bondlist[id_i] == id_j) {
+          const real r = sqrtf(r2);
+          const real expar = exp(-a*(r - r0));
+          const real oneminusexpar = real(1.0) - expar;
+          return make_real4(-2.0*De*a*((expar - 1)*expar/r)*rij,
+                            De*(oneminusexpar*oneminusexpar - real(1.0)));
+        } else {
+          const real invr2 = (sigma*sigma)/r2;
+          const real invr6 = invr2*invr2*invr2;
+          return make_real4(epsilon*(real(24.0) - real(48.0)*invr6)*invr6*invr2*rij,
+                            4*epsilon*invr6*(invr6 - real(1.0)));
+        }
+      }
+      else return real4();
+    }
+%! codeblockend
+\end{lstlisting}
+The \texttt{diatomic} structure ends with a \texttt{getForceTransverser} method 
+that feeds the necessary information into the \texttt{ForceEnergy} constructor.
+\begin{lstlisting}
+%! codeblock: getForceTransverser
+  ForceEnergy getForceTransverser(Box box, std::shared_ptr<ParticleData> particles){
+    auto force
+      = particles->getForce(access::location::gpu,
+                            access::mode::readwrite).raw();
+    auto energy
+      = particles->getEnergy(access::location::gpu,
+                             access::mode::readwrite).raw();
+    auto id
+      = particles->getId(access::location::gpu,
+                         access::mode::read);
+    int * bondlist = thrust::raw_pointer_cast(bonds.data());
+    return ForceEnergy(box, rc, force, energy, De, a, r0, sigma, epsilon, bondlist, id.raw());
+  }
+};
+%! codeblockend
+\end{lstlisting}
+
+%% LEAD IN TO THE NEXT CHAPTER
+
+\begin{comment}
+The complete diatomic potential data structure follows.
+\begin{lstlisting}
+%! codeblock: diatomicPairPotential
+%! codeinsert: diatomicVariables
+
+  real getCutOff() { return rc; }
+
+%! codeinsert: diatomicConstructor
+
+%! codeinsert: diatomicCreateBonds
+
+%! codeinsert: diatomicForceEnergy
+
+    __device__ void set(int id, real4 total){
+      force[id] += make_real4(total.x, total.y, total.z, 0);
+      energy[id] += total.w;
+    }
+  };
+
+%! codeinsert: getForceTransverser
+%! codeblockend
+\end{lstlisting}
+\end{comment}
+
+\begin{comment}
+Based on the previous Morse.cu code, diatomic.cu implements bond formation and 
+destruction with curve hopping.
+\begin{lstlisting}
+%! codefile: code/diatomic.cu
+# include "uammd.cuh"
+# include "utils/InitialConditions.cuh"
+# include "Interactor/Potential/Potential.cuh"
+# include "Interactor/NeighbourList/CellList.cuh"
+# include "Interactor/PairForces.cuh"
+# include "Integrator/VerletNVE.cuh"
+
+using namespace uammd;
+using std::make_shared;
+using std::endl;
+
+%! codeinsert: diatomicPairPotential
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  %! codeinsert: diatomicParticleData
+
+  %! codeinsert: latticeInitialConditions src: chapters/first_simulation.tex
+
+  %! codeinsert: diatomicSetMass
+
+  using Verlet = VerletNVE;
+  Verlet::Parameters VerletParams;
+  VerletParams.dt = 0.01;
+  VerletParams.initVelocities = true;
+  %! codeinsert: diatomicInitialEnergy
+
+  %! codeinsert: Verlet src: chapters/first_simulation.tex
+
+  %! codeinsert: addDiatomicPairPotential
+
+  for(int step = 0; step < numberOfSteps; ++step) {
+    %! codeinsert: createDiatomicBonds
+    integrator->forwardTime();
+
+    if(printEverynSteps > 0
+       and step % printEverynSteps == 1) {
+      %! codeinsert: printPositions src: chapters/first_simulation.tex
+    }
+  }
+
+  sys->finish();
+
+  return 0;
+}
+%! codeend
+\end{lstlisting}
+\end{comment}
 
 \begin{comment}
 List of programs written in this chapter:
@@ -1428,5 +1827,8 @@ List of programs written in this chapter:
 * `MorseChain.cu`: A chain of particles connected with Morse bond potentials and
    attached to the origin in a uniform gravitational field.
 * `Morse.cu`: Particles in a periodic box interacting through a Morse potential.
+* `diatomic.cu`: A modification of `Morse.cu` in which bonds can only link  
+   particles together in pairs. All other interactions are treated with 
+   Lennard-Jones potentials.
 %! codeblockend
 \end{comment}

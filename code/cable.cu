@@ -44,7 +44,7 @@ int main(int argc, char *argv[]){
       = particles->getMass(access::location::cpu,
                           access::mode::write);
 
-    real ropeLength = real(1.0);
+    real ropeLength = 1.0;
     for(int i = 0; i < numberOfParticles; ++i) {
       position[i].x = i*(ropeLength/(numberOfParticles - 1));
       position[i].y = position[i].z = position[i].w = real(0.0);
@@ -77,7 +77,7 @@ int main(int argc, char *argv[]){
     }
     bondInfo<<"10"<<endl;
 
-    real cableLength = real(1.0);
+    real cableLength = 1.0;
     for(int i = 0; i < 10; ++i)
       bondInfo<<i<<" "<<i*(cableLength/(numberOfParticles - 1))<<" 0 0 1000.0 0.0"<<endl;
   }

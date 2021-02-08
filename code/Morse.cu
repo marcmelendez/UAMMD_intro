@@ -89,10 +89,10 @@ int main(int argc, char *argv[]){
   auto integrator
     = make_shared<Verlet>(particles, sys, VerletParams);
 
-  real De = real(1.0);
-  real a = real(2.0);
-  real r0 = real(1.0);
-  real rc = real(6.5)*r0;
+  real De = 1.0;
+  real a = 2.0;
+  real r0 = 1.0;
+  real rc = 6.5*r0;
 
   auto MorsePotential = make_shared<Morse>(De, a, r0, rc);
   {

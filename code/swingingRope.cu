@@ -43,7 +43,7 @@ int main(int argc, char *argv[]){
       = particles->getMass(access::location::cpu,
                           access::mode::write);
 
-    real ropeLength = real(1.0);
+    real ropeLength = 1.0;
     for(int i = 0; i < numberOfParticles; ++i) {
       position[i].x = i*(ropeLength/(numberOfParticles - 1));
       position[i].y = position[i].z = position[i].w = real(0.0);
