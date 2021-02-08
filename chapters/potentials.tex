@@ -374,6 +374,7 @@ in this section, you must appease the spirits of \texttt{nvcc} with the flag
 \texttt{--expt-relaxed-constexpr}.
 \begin{lstlisting}
 nvcc -I../uammd/src -I../uammd/src/third_party --expt-relaxed-constexpr -o swingingRope swingingRope.cu
+%!
 \end{lstlisting}
 as well as any other relevant options on your system. When all the pieces fit
 together nicely, you should be able to reproduce Figure \ref{swingingRope}.
@@ -473,11 +474,12 @@ nonlinear  elastic (FENE) bond. FENE bonds have a potential function given by
   V_\text{FENE}(r) = -\frac{1}{2} K r_0^2\ 
                 \ln\left(1 - \left(\frac{r}{r_0}\right)^2\right).
 \end{equation*}
-Note that the minimum value for $V_\text{FENE}(r)$ (with $r \geq 0$) lies at $r
-= 0$, so the force will tend to pull the particles on top of each other.
-Customarily, researchers combine FENE bonds with the repulsive part of
-Lennard-Jones potentials, making the interaction potential between two bonded
-particles equal to
+Note that the minimum value for $V_\text{FENE}(r)$ (with $r \geq 0$) lies at $r 
+= 0$, so the force will tend to pull the particles on top of each other. 
+Customarily, researchers combine FENE bonds with the repulsive part of 
+Lennard-Jones potentials (also known as Weeks-Chandler-Andersen or WCA 
+potentials), making the interaction potential between two bonded particles equal 
+to
 \begin{equation*}
   V(r) =
     \begin{cases}
@@ -577,7 +579,7 @@ fixed-point bonds, and let gravity bend the rest of the cable.
     bondInfo<<"10"<<endl;
 
     real cableLength = real(1.0);
-    for(int i = 0; i < 10; i++)
+    for(int i = 0; i < 10; ++i)
       bondInfo<<i<<" "<<i*(cableLength/(numberOfParticles - 1))<<" 0 0 1000.0 0.0"<<endl;
 %! codeblockend
 \end{lstlisting}
@@ -1263,8 +1265,15 @@ do with the results.
   };
 %! codeblockend
 \end{lstlisting}
-There are additional functions designed to tweak the behaviour of your 
+UAMMD includes additional functions designed to tweak the behaviour of your 
 transversers, but we won't need them for the time being.
+
+I must stop here to warn you that UAMMD considers a particle neighbour of 
+itself, so you must always remember to handle the special case where $i$ and $j$ 
+both refer to the same particle. The code above deals with this case by stating 
+that the force and energy vanish when the distance from $i$ to $j$ equals zero, 
+or more precisely, the force differs from zero only when $\|\mathbf{r}_{ij}\|^2 
+> 0$ but $\|\mathbf{r}_{ij}\|^2 < r_c$.
 
 Finally, the containing \texttt{Morse} structure ends with a function that 
 returns the \texttt{ForceEnergy} transverser just defined, setting the values of 
@@ -1355,7 +1364,55 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
+Our new potential can form and break bonds, but readers eager to embark 
+enthusiastically on investigations of computational chemistry should first read 
+the following section.
+
 \section{The curve-hopping problem}
+
+To describe the formation of chemical bonds, you would typically use quantum 
+mechanics, sofisticated algorithms and costly computations. For the sake of 
+argument, let us assume that you can get by in your investigation with a 
+classical model, and that you decide to use UAMMD.
+
+Suppose you wanted to model a diatomic gas. The atoms bond through a Morse 
+potential, and collide and mix, creating and destroying bonds. The problem here 
+comes from the fact that molecules contain at most two atoms. Unfortunately, our 
+Morse pair potential can't preclude the formation of chains or clusters. To 
+solve the issue, we would need a potential-switching algorithm. When particles 
+form a bond, they should interact with their partner through the Morse 
+potential, but react to every other particle with a Lennard-Jones force, for 
+example. This might not seem like a big deal at first but you'll see that a few 
+difficulties crop up.
+
+Simply insert an \texttt{if} instruction in the calculation of the potential,
+you say? If a bond exists between particles, use the Morse potential, otherwise 
+apply the Lennard-Jones function. Yes, of course, but how do you decide when to 
+bind particles together? This requires a decent amount of bookkeeping. Let's set 
+up a list of bonds with as many entries as particles. We'll mark unbound 
+particles with $-1$ and bound particles with the other particle's ID. Hence, 
+if particle 0 were free and particle 1 were bound to particle 2, we would have
+\texttt{bonds[0] = -1}, \texttt{bonds[1] = 2} and \texttt{bonds[2] = 1}. Bonds 
+will dissolve as soon as the particles separate further than the cut-off radius.
+
+Quite straightforward, but hang on. Let us discuss bond formation first. Let two 
+particles bind when they lie within the cut-off range without being already 
+connected to some other particle. This means that as soon as you decide to link 
+particles $i$ and $j$, they cease to count as candidate partners for others. A 
+na\"ive implementation of this condition will lead to inconsistencies because 
+two nearby particles might to bond to a third. We therefore need a new algorithm 
+to deal with bond creation.
+
+We're not done yet, though. When a bond breaks, the atoms involved will try to 
+form new ones and will sometimes encounter other atoms already within bonding 
+range. Consequently, their mutual energy will switch from the Lennard-Jones to 
+the Morse potential in a sudden unjustified jump of the mechanical energy. To 
+compensate for the difference, we can adjust the speeds of the newly linked 
+atoms, transforming the difference in potential energy into kinetic energy.
+
+%% Is it worth it?
+
+%% Add diatomic.cu to code list.
 
 \begin{comment}
 List of programs written in this chapter:

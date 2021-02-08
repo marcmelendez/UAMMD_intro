@@ -78,7 +78,7 @@ int main(int argc, char *argv[]){
     bondInfo<<"10"<<endl;
 
     real cableLength = real(1.0);
-    for(int i = 0; i < 10; i++)
+    for(int i = 0; i < 10; ++i)
       bondInfo<<i<<" "<<i*(cableLength/(numberOfParticles - 1))<<" 0 0 1000.0 0.0"<<endl;
   }
 
