@@ -1584,7 +1584,7 @@ You should find the loop above easy enough to understand and, with some basic
 knowledge of CUDA, easy to parallelise.
 
 The following chunk of code works out bond formation. It presents the simplest 
-way (that I can think of) to bind particles without generating inconsistencies. 
+way that I can think of to bind particles without generating inconsistencies. 
 Unfortunately, simplicity comes at the cost of being terribly inefficient. If 
 you ever wanted to use this example for a serious simulation, the following 
 section should be the first to improve. Neighbour lists algorithms provide an 
@@ -1730,7 +1730,24 @@ that feeds the necessary information into the \texttt{ForceEnergy} constructor.
 %! codeblockend
 \end{lstlisting}
 
-%% LEAD IN TO THE NEXT CHAPTER
+There you have it: a complete program simulating diatomic molecule formation and 
+dissociation. It advances so slowly that you wouldn't use for any practical 
+purpose, though, so what is the point I am trying to make here? In a single 
+word, \textit{forethought}. Before you rush in to type your own lines of code, 
+consider what was already implemented in UAMMD, what you need and what changes 
+that implies and the benefits of coding for UAMMD. I do not mean to discourage 
+you from playing around and learning from the code, if that is your idea of fun. 
+Quite the opposite, UAMMD contains many neat simulation tricks worth learning. 
+However, writing your own simulation from scratch may lead to even greater 
+satisfaction and perhaps less work than trying to adapt your algorithm to the 
+UAMMD infrastructure.
+
+These first two chapters have given you more than enough material to create your 
+own simulations and use the output to create videos of spheres flying around and 
+colliding in your own virtual world. But scientists aim at describing the real 
+world, and that involves measuring interesting quantities in your system and 
+relating them to physical objects, as we will see in the next chapter.
+
 
 \begin{comment}
 The complete diatomic potential data structure follows.
