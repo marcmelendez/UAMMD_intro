@@ -143,6 +143,9 @@ operation on all the particles, but don't care about the order, like when you
 calculate the force on each particle. If you wish to track trajectories, for
 example, then you need to identify the particles by name. So, if you would
 like to print out the positions in the same order every time, use this:
+
+\clearpage
+
 \label{particlePositions}
 \begin{lstlisting}
       auto position
@@ -404,10 +407,8 @@ The ``\texttt{sc}'' parameter in \texttt{initLattice} refers to ``simple
 cubic''. Other options are face-centred cubic (\texttt{fcc}), body-centred cubic
 (\texttt{bcc}), hexagonal close-packed (\texttt{hcp}), diamond structure
 (\texttt{dia}) and the two-dimensional triangular (\texttt{tri}) and square
-(\texttt{sq}) lattices.
-
-Remember to reset the periodicity (\texttt{periodicityZ = true}) and size of the
-box in the $z$ direction.
+(\texttt{sq}) lattices. Remember to reset the periodicity
+(\texttt{periodicityZ = true}) and size of the box in the $z$ direction.
 \begin{comment}
 \begin{lstlisting}
 %! codeblock: LJsimulationBox

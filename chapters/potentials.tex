@@ -1413,7 +1413,7 @@ compensate for the difference, we can adjust the speeds of the newly linked
 atoms, transforming the difference in potential energy into kinetic energy.
 
 With the project laid out before us, we inevitably have to face the question of 
-whether it's worth the effort. UAMMD might provide a significant improvement on 
+whether it's worth the effort. UAMMD might provide a significant improvement in 
 speed, but only if we come up with efficient algorithms dealing with the bonds. 
 If you trust your theoretical knowledge and programming skills enough to carry 
 out such a feat, then I believe you should seriously consider learning some CUDA 
@@ -1431,15 +1431,14 @@ lowered the number of particles to only one thousand.
     = make_shared<ParticleData>(numberOfParticles, sys);
 %! codeblockend
 \end{lstlisting}
-and decrease the initial energies.
+I also decreased the initial energies, to avoid atoms slamming into each other.
 \begin{lstlisting}
 %! codeblock: diatomicInitialEnergy
   VerletParams.energy = 0.001;
 %! codeblockend
 \end{lstlisting}
-Next, following the initialisation of positions, we will set the values of the 
-atomic masses (as we will need them to adjust the speeds after any potential 
-curve hopping).
+After the initialisation of positions, we set the values of the atomic masses 
+(as we will need them to adjust the speeds after any potential curve hopping).
 \begin{lstlisting}
 %! codeblock: diatomicSetMass
 {
