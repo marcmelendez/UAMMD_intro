@@ -12,7 +12,7 @@ int main(int argc, char *argv[]){
 
   int numberOfParticles = 100000;
   auto particles
-    = make_shared<ParticleData>(numberOfParticles, sys);
+    = make_shared<ParticleData>(numberOfParticles, sys);//!
 
   real L = 128;
   Box box(make_real3(L, L, std::numeric_limits<real>::infinity()));
@@ -29,22 +29,22 @@ int main(int argc, char *argv[]){
     for(int i = 0; i < numberOfParticles; ++i)
       position[i]
         = make_real4(sys->rng().uniform3(-0.5, 0.5), 0)*L;
-  }
+  }//!
 
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = 0.01;
   VerletParams.initVelocities=true;
-  VerletParams.energy = 1.0;
+  VerletParams.energy = 1.0;//!
 
   auto integrator
-    = make_shared<Verlet>(particles, sys, VerletParams);
+    = make_shared<Verlet>(particles, sys, VerletParams);//!
 
   std::string outputFile = "freeExpansion.dat";
   std::ofstream out(outputFile);
 
   int numberOfSteps = 1000;
-  int printEverynSteps = 100;
+  int printEverynSteps = 100; //!
 
   for(int step = 0; step < numberOfSteps; ++step) {
     integrator->forwardTime();
@@ -59,11 +59,11 @@ int main(int argc, char *argv[]){
 
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
-        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl; //!
     }
-  }
+  } //!
 
   sys->finish();
 
   return 0;
-}
+} //!

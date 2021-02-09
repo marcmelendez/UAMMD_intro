@@ -10,19 +10,21 @@ using std::endl;
 
 struct gravitationalForce{
   real g;
-  gravitationalForce(real numericalValueOfg):g(numericalValueOfg){}
-  __device__ __forceinline__ real3 force(const real4 &position, const real &mass){
+  gravitationalForce(real numericalValueOfg):g(numericalValueOfg){} //!
+  __device__ __forceinline__ real3 force(const real4 &position,
+                                         const real &mass){
     return make_real3(0.0f, -mass*g, 0.0f);
-  }
-  __device__ __forceinline__ real energy(const real4 &position, const real &mass){
+  } //!
+  __device__ __forceinline__ real energy(const real4 &position,
+                                         const real &mass){
     return mass*g*position.y;
-  }
+  } //!
   std::tuple<const real4 *, const real *> getArrays(ParticleData *particles){
     auto position = particles->getPos(access::location::gpu, access::mode::read);
     auto mass = particles->getMass(access::location::gpu, access::mode::read);
     return std::make_tuple(position.raw(), mass.raw());
-  }
-};
+  } //!
+}; //!
 
 int main(int argc, char *argv[]){
 
@@ -50,7 +52,7 @@ int main(int argc, char *argv[]){
       velocity[i].x = velocity[i].y = velocity[i].z = real(0.0);
       mass[i] = real(0.001);
     }
-  }
+  } //!
 
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
@@ -58,7 +60,7 @@ int main(int argc, char *argv[]){
   VerletParams.initVelocities=false;
 
   auto integrator
-    = make_shared<Verlet>(particles, sys, VerletParams);
+    = make_shared<Verlet>(particles, sys, VerletParams);//!
 
   {
     std::ofstream bondInfo("data.bonds");
@@ -79,17 +81,17 @@ int main(int argc, char *argv[]){
     using HarmonicBonds = BondedForces<BondedType::Harmonic>;
     HarmonicBonds::Parameters bondParameters;
     bondParameters.file = "data.bonds";
-    auto bonds = make_shared<HarmonicBonds>(particles, sys, bondParameters);
+    auto bonds = make_shared<HarmonicBonds>(particles, sys, bondParameters); //!
 
     integrator->addInteractor(bonds);
-  }
+  } //!
 
   {
     auto gravity
       = make_shared<ExternalForces<gravitationalForce>>(particles, sys, make_shared<gravitationalForce>(real(9.8)));
 
     integrator->addInteractor(gravity);
-  }
+  } //!
 
   std::string outputFile = "swingingRope.dat";
   std::ofstream out(outputFile);

@@ -10,7 +10,7 @@ int add(int a, int b) {
 void goodbye() {
   cout<<"Goodbye!"<<endl;
   return;
-}
+} //!
 int main(int argc, char * argv[])
 {
   cout<<"Hello, World!"<<endl;
@@ -21,8 +21,8 @@ int main(int argc, char * argv[])
        and i % printEverynSteps == 0) {
         cout<<"Iteration: "<<i<<endl;
     }
-  }
+  } //!
   cout<<"3 + 5 = "<<add(3,5)<<endl;
-  goodbye();
+  goodbye(); //!
 	return 0;
-}
+} //!

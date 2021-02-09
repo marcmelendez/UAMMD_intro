@@ -1,5 +1,7 @@
 # Example programs
 
+The comment ``//!`` marks the ends of code snippets in the text.
+
 ## Introduction
 
 * `helloWorld.cpp`: The iconic "Hello, World!" example written in C++.

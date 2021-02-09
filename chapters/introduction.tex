@@ -73,8 +73,8 @@ int main(int argc, char * argv[])
   %! codeinsert: multiplesOfThree
   %! codeinsert: functionCalls
 	return 0;
-}
-%! codeend
+} //!
+%! codeend !//
 \end{lstlisting}
 
 The final lines of code implement the \texttt{main} function. C++ programs
@@ -88,7 +88,6 @@ returnvalue functionname(list, of, arguments)
 {
   what the function does
 }
-%!
 \end{lstlisting}
 
 Our ``Hello, World'' \texttt{main} function returns an integer (\texttt{int})
@@ -117,7 +116,6 @@ int numberOfParticles; /* An integer value */
 real temperature; /* A floating-point real value */
 Box simulationBox(10); /* A cubic box of side 10 units */
 bool printPositions; /* A boolean (true or false) value */
-%!
 \end{lstlisting}
 
 We will control program flow with \texttt{for} and \texttt{if}. A \texttt{for}
@@ -126,7 +124,6 @@ loop like
   for(int i = 1; i <= 100; ++i) {
     cout<<"Iteration: "<<i<<endl;
   }
-%!
 \end{lstlisting}
 will begin by setting the integer \texttt{i} equal to 1. It will then execute
 the \texttt{cout} code on the line below time and again while \texttt{i} does
@@ -141,14 +138,12 @@ something else happened, you typically write code with the following structure.
     then_do_this();
     and_this();
   }
-%!
 \end{lstlisting}
 Sometimes you want to specify what the program should do otherwise by adding
 \begin{lstlisting}
   else {
     do_this_instead();
   }
-%!
 \end{lstlisting}
 For example, suppose we wanted to print the number only every thirteen steps,
 then we would replace the content of the for loop like this.
@@ -161,8 +156,8 @@ then we would replace the content of the for loop like this.
        and i % printEverynSteps == 0) {
         cout<<"Iteration: "<<i<<endl;
     }
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 The \texttt{if} block says that if \texttt{printEverynSteps} is a positive 
 number (\texttt{> 0}) and the remainder of the step number divided by 
@@ -177,7 +172,6 @@ Iteration: 52
 Iteration: 65
 Iteration: 78
 Iteration: 91
-%!
 \end{lstlisting}
 
 Much of UAMMD code will be calling functions or methods defined elsewhere.
@@ -191,8 +185,8 @@ int add(int a, int b) {
 void goodbye() {
   cout<<"Goodbye!"<<endl;
   return;
-}
-%! codeblockend
+} //!
+%! codeblockend !//
 \end{lstlisting}
 The first function takes two integers and returs their sum. The second takes no
 arguments and returns none, but prints out ``Goodbye!''. To call these functions
@@ -201,8 +195,8 @@ their arguments in parentheses.
 \begin{lstlisting}
 %! codeblock: functionCalls
   cout<<"3 + 5 = "<<add(3,5)<<endl;
-  goodbye();
-%! codeblockend
+  goodbye(); //!
+%! codeblockend !//
 \end{lstlisting}
 
 \section*{\label{basic_simulation}Simulating classical particle physics}
@@ -265,8 +259,8 @@ int main(int argc, char * argv[])
   /* Integration parameters */
   int nsteps = 10000; /* Number of time steps to calculate */
   float dt = 0.001; /* Size of time step (in seconds) */
-  int printEverynSteps = 20;
-%! codepause
+  int printEverynSteps = 20; //!
+%! codepause !//
 \end{lstlisting}
 The second step on our list suggests that we specify the initial conditions.
 \begin{lstlisting}
@@ -275,8 +269,8 @@ The second step on our list suggests that we specify the initial conditions.
   r[0] = 0;
   r[1] = 2;
   v[0] = 0.5;
-  v[1] = 1;
-%! codepause
+  v[1] = 1; //!
+%! codepause !//
 \end{lstlisting}
 Thirdly, we integrate the equations of motion with Euler's algorithm. When we
 update the positions and velocities, we must take into account collisions with
@@ -305,16 +299,16 @@ loop we print out one in every 10 steps.
        && step % printEverynSteps == 0) {
       cout<<step*dt<<" "<<r[0]<<" "<<r[1]<<endl;
     }
-  }
-%! codeend
+  } //!
+%! codeend !//
 \end{lstlisting}
 Finally, we close down the program.
 \begin{lstlisting}
 %! codecontinue: code/rubberBall.cpp
   cout<<"# Simulated time: "<<nsteps*dt<<" seconds. #"<<endl;
   return 0;
-}
-%! codeend
+} //!
+%! codeend !//
 \end{lstlisting}
 Compiling and running the code generated the data used to plot the trajectory
 in Fig. \ref{rubberBall}.

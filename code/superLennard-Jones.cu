@@ -21,17 +21,17 @@ struct InputParameters {
   std::string outputFile;
   int numberOfSteps;
   int printEverynSteps;
-};
+}; //!
 
 InputParameters readParameterFile(std::shared_ptr<System> sys)
-{
+{ //!
   if(!std::ifstream("data.main").good()) {
-    sys->log<System::WARNING>("File data.main not found. Creating file with default values.");
+    sys->log<System::WARNING>("File data.main not found. Creating file with default values."); //!
     std::ofstream defaultParameters("data.main");
     if(not defaultParameters.is_open()) {
       sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
       exit(-1);
-    }
+    } //!
     defaultParameters<<"numberOfParticles 100000"<<endl;
     defaultParameters<<"boxSize 128"<<endl;
     defaultParameters<<"timeStep 0.01"<<endl;
@@ -43,8 +43,8 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     defaultParameters<<"particleEnergy 1.0"<<endl;
     defaultParameters<<"outputFile Lennard-Jones.dat"<<endl;
     defaultParameters<<"numberOfSteps 10000"<<endl;
-    defaultParameters<<"printEverynSteps 1000"<<endl;
-  }
+    defaultParameters<<"printEverynSteps 1000"<<endl; //!
+  } //!
   InputFile parameterFile("data.main", sys);
   InputParameters params;
 
@@ -69,17 +69,17 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
   parameterFile.getOption("numberOfSteps",
     InputFile::Required)>>params.numberOfSteps;
   parameterFile.getOption("printEverynSteps",
-    InputFile::Required)>>params.printEverynSteps;
+    InputFile::Required)>>params.printEverynSteps; //!
 
   return params;
-}
+} //!
 
 int main(int argc, char *argv[]){
 
   auto sys = make_shared<System>(argc, argv);
 
-  sys->log<System::MESSAGE>("Reading parameters from data.main.");
-  InputParameters simParams = readParameterFile(sys);
+  sys->log<System::MESSAGE>("Reading parameters from data.main."); //!
+  InputParameters simParams = readParameterFile(sys); //!
 
   int numberOfParticles = simParams.numberOfParticles;
   auto particles
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]){
   bool periodicityX = true, periodicityY = true,
        periodicityZ = true;
   box.setPeriodicity(periodicityX, periodicityY,
-                     periodicityZ);
+                     periodicityZ); //!
   {
     auto position
       = particles->getPos(access::location::cpu,
@@ -110,7 +110,7 @@ int main(int argc, char *argv[]){
   VerletParams.energy = simParams.particleEnergy;
 
   auto integrator
-    = make_shared<Verlet>(particles, sys, VerletParams);
+    = make_shared<Verlet>(particles, sys, VerletParams);//!
 
   auto LJPotential = make_shared<Potential::LJ>(sys);
   {
@@ -133,7 +133,7 @@ int main(int argc, char *argv[]){
                               LJPotential);
 
     integrator->addInteractor(interaction);
-  }
+  } //!
 
   std::string outputFile = simParams.outputFile;
   std::ofstream out(outputFile);
@@ -154,9 +154,9 @@ int main(int argc, char *argv[]){
 
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
-        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl; //!
     }
-  }
+  } //!
 
   sys->finish();
 

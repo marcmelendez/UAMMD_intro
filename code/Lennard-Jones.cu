@@ -15,7 +15,7 @@ int main(int argc, char *argv[]){
 
   int numberOfParticles = 100000;
   auto particles
-    = make_shared<ParticleData>(numberOfParticles, sys);
+    = make_shared<ParticleData>(numberOfParticles, sys);//!
 
   real L = 128;
 
@@ -23,7 +23,7 @@ int main(int argc, char *argv[]){
   bool periodicityX = true, periodicityY = true,
        periodicityZ = true;
   box.setPeriodicity(periodicityX, periodicityY,
-                     periodicityZ);
+                     periodicityZ); //!
   {
     auto position
       = particles->getPos(access::location::cpu,
@@ -33,16 +33,16 @@ int main(int argc, char *argv[]){
                                 numberOfParticles, sc);
 
     std::copy(initial.begin(), initial.end(), position.begin());
-  }
+  } //!
 
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = 0.01;
   VerletParams.initVelocities=true;
-  VerletParams.energy = 1.0;
+  VerletParams.energy = 1.0;//!
 
   auto integrator
-    = make_shared<Verlet>(particles, sys, VerletParams);
+    = make_shared<Verlet>(particles, sys, VerletParams);//!
 
   auto LJPotential = make_shared<Potential::LJ>(sys);
   {
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]){
     LJParams.cutOff = 2.5*LJParams.sigma;
     LJParams.shift = false;
     LJPotential->setPotParameters(0, 0, LJParams);
-  }
+  } //!
 
   {
     using LJForces = PairForces<Potential::LJ>;
@@ -65,7 +65,7 @@ int main(int argc, char *argv[]){
                               LJPotential);
 
     integrator->addInteractor(interaction);
-  }
+  } //!
 
   std::string outputFile = "Lennard-Jones.dat";
   std::ofstream out(outputFile);
@@ -86,11 +86,11 @@ int main(int argc, char *argv[]){
 
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
-        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl; //!
     }
-  }
+  } //!
 
   sys->finish();
 
   return 0;
-}
+} //!

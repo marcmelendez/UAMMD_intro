@@ -32,15 +32,15 @@ int main(int argc, char *argv[]){
       position[i].z = position[i].w = 0;
       velocity[i].x = velocity[i].y = velocity[i].z = 0;
     }
-  }
+  } //!
 
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = 0.001;
-  VerletParams.initVelocities=false;
+  VerletParams.initVelocities=false; //!
 
   auto integrator
-    = make_shared<Verlet>(particles, sys, VerletParams);
+    = make_shared<Verlet>(particles, sys, VerletParams);//!
 
   {
     std::ofstream bondInfo("data.bonds");
@@ -56,16 +56,16 @@ int main(int argc, char *argv[]){
     bondInfo<<"2"<<endl;
     bondInfo<<"0 0 0 0 1000.0 0.0"<<endl;
     bondInfo<<"100 1 0 0 1000.0 0.0"<<endl;
-  }
+  } //!
 
   {
     using HarmonicBonds = BondedForces<BondedType::Harmonic>;
     HarmonicBonds::Parameters bondParameters;
     bondParameters.file = "data.bonds";
-    auto bonds = make_shared<HarmonicBonds>(particles, sys, bondParameters);
+    auto bonds = make_shared<HarmonicBonds>(particles, sys, bondParameters); //!
 
     integrator->addInteractor(bonds);
-  }
+  } //!
 
   std::string outputFile = "vibratingString.dat";
   std::ofstream out(outputFile);

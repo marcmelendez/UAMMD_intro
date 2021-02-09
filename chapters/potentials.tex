@@ -54,8 +54,8 @@ will line them all up along a curved queue, standing initially at rest.
       position[i].z = position[i].w = 0;
       velocity[i].x = velocity[i].y = velocity[i].z = 0;
     }
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 
 UAMMD reads bond information in from an external file. Let me first explain the
@@ -87,7 +87,6 @@ should end with:
 2
 0 0 0 0 1000.0 0.0
 100 1 0 0 1000.0 0.0
-%!
 \end{lstlisting}
 With the ends held in place, we have a taut string. As soon as we let go and run
 the simulation, it should vibrate.
@@ -109,8 +108,8 @@ We will make the program write the bond information so that we don't have to.
     bondInfo<<"2"<<endl;
     bondInfo<<"0 0 0 0 1000.0 0.0"<<endl;
     bondInfo<<"100 1 0 0 1000.0 0.0"<<endl;
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 
 Including the bonds presents no difficulties from the point of view of UAMMD
@@ -118,7 +117,6 @@ code, as the code resembles the lines we wrote for the Lennard-Jones
 interaction. You insert the customary include at the top,
 \begin{lstlisting}
 # include "Interactor/BondedForces.cuh"
-%!
 \end{lstlisting}
 define the interaction parameters to create the ``interactor'',
 \begin{lstlisting}
@@ -127,15 +125,15 @@ define the interaction parameters to create the ``interactor'',
     using HarmonicBonds = BondedForces<BondedType::Harmonic>;
     HarmonicBonds::Parameters bondParameters;
     bondParameters.file = "data.bonds";
-    auto bonds = make_shared<HarmonicBonds>(particles, sys, bondParameters);
-%! codeblockend
+    auto bonds = make_shared<HarmonicBonds>(particles, sys, bondParameters); //!
+%! codeblockend !//
 \end{lstlisting}
 and then add the new bond interaction to the integrator.
 \begin{lstlisting}
 %! codeblock: stringAddInteractor
     integrator->addInteractor(bonds);
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 
 To replicate the simulation results shown in Figure \ref{vibratingString},
@@ -145,8 +143,8 @@ set the integrator parameters to these values:
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = 0.001;
-  VerletParams.initVelocities=false;
-%! codeblockend
+  VerletParams.initVelocities=false; //!
+%! codeblockend !//
 \end{lstlisting}
 For the figure, I simulated twenty thousand steps and output the positions every
 two thousand. Because I did not need a simulation box in this case, I eliminated
@@ -155,7 +153,6 @@ the corresponding block of code and changed the output command.
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
         out<<position[index[id]]<<endl;
-%!
 \end{lstlisting}
 
 \begin{comment}
@@ -240,7 +237,6 @@ the file like this:
 \begin{lstlisting}
 1
 0 0 0 0 1000.0 0.0
-%!
 \end{lstlisting}
 
 We are holding our chain only from the side at the origin of coordinates, but if
@@ -259,7 +255,6 @@ does not act as an interaction among particles, but rather a force field that
 affects each of them independently of the motions of the other particles. Thus,
 \begin{lstlisting}
 # include "Interactor/ExternalForces.cuh"
-%!
 \end{lstlisting}
 
 An external force definition consists of four parts:
@@ -280,8 +275,8 @@ struct gravitationalForce{
 %! codeinsert: gravityForce
 %! codeinsert: gravityEnergy
 %! codeinsert: gravityParticleInfo
-};
-%! codeblockend
+}; //!
+%! codeblockend !//
 \end{lstlisting}
 Now, between the declaration of $g$ and the closing bracket, we will insert the
 four items listed above, beginning with a function that initialises the force.
@@ -290,25 +285,27 @@ to the variable \texttt{g}. We can code it as an empty function. This type of
 function is known as a constructor and is named like the data structure.
 \begin{lstlisting}
 %! codeblock: gravityConstructor
-  gravitationalForce(real numericalValueOfg):g(numericalValueOfg){}
-%! codeblockend
+  gravitationalForce(real numericalValueOfg):g(numericalValueOfg){} //!
+%! codeblockend !//
 \end{lstlisting}
 The second item (the force) equals the mass of the particle times $-g$ in the
 $y$ direction.
 \begin{lstlisting}
 %! codeblock: gravityForce
-  __device__ __forceinline__ real3 force(const real4 &position, const real &mass){
+  __device__ __forceinline__ real3 force(const real4 &position,
+                                         const real &mass){
     return make_real3(0.0f, -mass*g, 0.0f);
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 Next, we write the function for the gravitational potential energy.
 \begin{lstlisting}
 %! codeblock: gravityEnergy
-  __device__ __forceinline__ real energy(const real4 &position, const real &mass){
+  __device__ __forceinline__ real energy(const real4 &position,
+                                         const real &mass){
     return mass*g*position.y;
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 We end the data structure telling the interaction where to get the position and
 mass information.
@@ -318,8 +315,8 @@ mass information.
     auto position = particles->getPos(access::location::gpu, access::mode::read);
     auto mass = particles->getMass(access::location::gpu, access::mode::read);
     return std::make_tuple(position.raw(), mass.raw());
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 You might have asked yourself why we handed the position over to the force
 function even though it doesn't need to know the particle's location. The reason,
@@ -349,8 +346,8 @@ velocities, we must also define the mass of each element in the rope.
       velocity[i].x = velocity[i].y = velocity[i].z = real(0.0);
       mass[i] = real(0.001);
     }
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 
 It does not matter much whether you write the constant numerical values as 
@@ -367,8 +364,8 @@ standard procedure.
       = make_shared<ExternalForces<gravitationalForce>>(particles, sys, make_shared<gravitationalForce>(real(9.8)));
 
     integrator->addInteractor(gravity);
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 
 Time for an important warning. If you want your code to compile with the changes
@@ -376,7 +373,6 @@ in this section, you must appease the spirits of \texttt{nvcc} with the flag
 \texttt{--expt-relaxed-constexpr}.
 \begin{lstlisting}
 nvcc -I../uammd/src -I../uammd/src/third_party --expt-relaxed-constexpr -o swingingRope swingingRope.cu
-%!
 \end{lstlisting}
 as well as any other relevant options on your system. When all the pieces fit
 together nicely, you should be able to reproduce Figure \ref{swingingRope}.
@@ -502,7 +498,6 @@ Within UAMMD, code for FENE bonds parallels that of harmonic bonds, but with a
 different type, so you would define them with
 \begin{lstlisting}
     using FENEBonds = BondedForces<BondedType::FENE>;
-%!
 \end{lstlisting}
 When experimenting with FENE bonds, remember that linked particles must start
 off with a separation smaller than $r_0$.
@@ -563,7 +558,6 @@ with two angular potentials could look like this:
 2
 0 1 2 100 0
 5 6 7 100 1.5708
-%!
 \end{lstlisting}
 The first three particles would tend to lie on a straight line, while particles 
 $5$, $6$ and $7$ would form a right angle. Note that $\theta_0$ refers to the 
@@ -582,21 +576,21 @@ fixed-point bonds, and let gravity bend the rest of the cable.
 
     real cableLength = 1.0;
     for(int i = 0; i < 10; ++i)
-      bondInfo<<i<<" "<<i*(cableLength/(numberOfParticles - 1))<<" 0 0 1000.0 0.0"<<endl;
-%! codeblockend
+      bondInfo<<i<<" "<<i*(cableLength/(numberOfParticles - 1))<<" 0 0 1000.0 0.0"<<endl; //!
+%! codeblockend !//
 \end{lstlisting}
 We will need a smaller time step to resolve the motion.
 \begin{lstlisting}
 %! codeblock: cableTimeStep
-  VerletParams.dt = real(0.00001);
-%! codeblockend
+  VerletParams.dt = real(0.00001); //!
+%! codeblockend !//
 \end{lstlisting}
 Consequently, we increase the number of steps to integrate.
 \begin{lstlisting}
 %! codeblock: cableNumberOfSteps
   int numberOfSteps = 150000;
-  int printEverynSteps = 5000;
-%! codeblockend
+  int printEverynSteps = 5000; //!
+%! codeblockend !//
 \end{lstlisting}
 
 Now let us link our chain with angular potentials, by attaching every three
@@ -615,14 +609,13 @@ consecutive particles with $K = 2.0$ and $\theta_0 = 0$.
     for(int i = 0; i < numberOfParticles - 2; ++i) {
       angularInfo<<i<<" "<<(i + 1)<<" "<<(i + 2)<<" "<<K<<" "<<theta0<<endl;
     }
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 
 If we connect our UAMMD module to the relevant header,
 \begin{lstlisting}
 # include "Interactor/AngularBondedForces.cuh"
-%!
 \end{lstlisting}
 creating the interaction follows the usual rules, but notice that you need to
 have a simulation box defined (as explained in section \ref{simulation_box}). We
@@ -630,8 +623,8 @@ will just make the box infinite in every direction.
 \begin{lstlisting}
 %! codeblock: cableBox
   real L = std::numeric_limits<real>::infinity();
-  Box box(make_real3(L, L, L));
-%! codeblockend
+  Box box(make_real3(L, L, L)); //!
+%! codeblockend !//
 \end{lstlisting}
 To generate the angular forces interaction, we write code that parallels the
 creation of harmonic bonds.
@@ -647,8 +640,8 @@ creation of harmonic bonds.
                                        angularParameters,
                                        std::make_shared<AngularBondedForces_ns::AngularBond>(box));
     integrator->addInteractor(angularForces);
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 I should briefly comment on three annoying peculiarities in the code snippet
 above. One, the bond type has an irritatingly redundant long name:
@@ -756,7 +749,6 @@ some potential that opposes the torsion of this molecule. This we can achieve
 with the torsional forces interaction.
 \begin{lstlisting}
 # include "Interactor/TorsionalBondedForces.cuh"
-%!
 \end{lstlisting}
 
 \begin{figure}
@@ -798,14 +790,14 @@ bias the torsional forces.
       position[i].w = 0;
       velocity[i].x = velocity[i].y = velocity[i].z = 0;
     }
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 Soften the angular forces and set the curvature of the chain with
 \begin{lstlisting}
 %! codeblock: wireCurvature
-    real K = 1.0, theta0 = 4*M_PI/(numberOfParticles - 1);
-%! codeblockend
+    real K = 1.0, theta0 = 4*M_PI/(numberOfParticles - 1); //!
+%! codeblockend !//
 \end{lstlisting}
 Now for the torsional potentials connecting every four sequential points.
 \begin{lstlisting}
@@ -823,8 +815,8 @@ Now for the torsional potentials connecting every four sequential points.
       torsionalInfo<<i<<" "<<(i + 1)<<" "<<(i + 2)<<" "<<(i + 3)
                    <<" "<<K<<" "<<phi0<<endl;
     }
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 Torsion interactors replicate the structure of the angular interaction code
 written above.
@@ -840,15 +832,15 @@ written above.
                                         torsionalParameters,
                                         std::make_shared<TorsionalBondedForces_ns::TorsionalBond>(box));
     integrator->addInteractor(torsionalForces);
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 This time, I carried out a longer time integration.
 \begin{lstlisting}
 %! codeblock: wireNumberOfSteps
   int numberOfSteps = 600000;
-  int printEverynSteps = 10000;
-%! codeblockend
+  int printEverynSteps = 10000; //!
+%! codeblockend !//
 \end{lstlisting}
 
 \begin{figure}
@@ -969,12 +961,12 @@ equilibrium distance. As we did with gravity, we create a new data structure
 before \texttt{main}, opening with
 \begin{lstlisting}
 %! codeblock: MorsePotential
-struct Morse {
+struct Morse { //!
 %! codeinsert: MorseParameters
 %! codeinsert: MorseReadBonds
 %! codeinsert: MorseEnergy
 %! codeinsert: MorseForce
-%! codeblockend
+%! codeblockend !//
 \end{lstlisting}
 The data structure must contain four items:
 \begin{enumerate}
@@ -990,8 +982,8 @@ The item at the top of the list would come out as follows:
 %! codeblock: MorseParameters
   struct BondInfo {
     real De, a, r0;
-  };
-%! codeblockend
+  }; //!
+%! codeblockend !//
 \end{lstlisting}
 In the file listing the bonds, we would like to begin with the number of bonds,
 followed by rows of $i$, $j$, $D_e$, $a$, and $r0$, by analogy with previous
@@ -1004,8 +996,8 @@ specify in a \texttt{readBond} function.
     BondInfo MorseParams;
     in>>MorseParams.De>>MorseParams.a>>MorseParams.r0;
     return MorseParams;
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 The energy function calculates $V(r)$, according to the aforementioned Morse
 potential.
@@ -1018,8 +1010,8 @@ potential.
     real oneminusexpar
       = real(1.0) - exp(-MorseParams.a*(r - MorseParams.r0));
     return MorseParams.De*(oneminusexpar*oneminusexpar - real(1.0));
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 Finally, we close our \texttt{Morse} data structure with the force, which equals 
 the negative gradient of the energy,
@@ -1039,8 +1031,8 @@ the negative gradient of the energy,
     return real(2.0)*MorseParams.De*MorseParams.a
                     *((expar - 1)*expar/r)*rij;
   }
-};
-%! codeblockend
+}; //!
+%! codeblockend !//
 \end{lstlisting}
 
 To incorporate our new interaction, proceed as with the Harmonic bonds, but
@@ -1055,8 +1047,8 @@ replacing the \texttt{BondedType::Harmonic} with our \texttt{Morse}.
                                          bondParameters);
 
     integrator->addInteractor(bonds);
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 
 As a test, I swapped the bonds in the swinging rope simulation with our newer 
@@ -1071,8 +1063,8 @@ file.
               <<De<<" "<<a<<" "<<r0<<endl;
     }
     bondInfo<<"1"<<endl;
-    bondInfo<<"0 0 0 0 "<<De<<" "<<a<<" "<<r0<<endl;
-%! codeblockend
+    bondInfo<<"0 0 0 0 "<<De<<" "<<a<<" "<<r0<<endl; //!
+%! codeblockend !//
 \end{lstlisting}
 Written in this way, the simulation would still not work because of particle 
 $0$, which begins at the origin, making $r = 0$ for the fixed-point bond. This
@@ -1081,8 +1073,8 @@ that caused an avalanche of \texttt{nan}s in the computations. To avoid the
 problem, I began with the whole chain shifted slightly to the right.
 \begin{lstlisting}
 %! codeblock: MorseChainInitialConditions
-      position[i].x = (1 + i)*(ropeLength/(numberOfParticles - 1));
-%! codeblockend
+      position[i].x = (1 + i)*(ropeLength/(numberOfParticles - 1)); //!
+%! codeblockend !//
 \end{lstlisting}
 
 \begin{figure}
@@ -1201,18 +1193,18 @@ struct Morse {
   real De, a, r0, rc;
 
   Morse(real i_De, real i_a, real i_r0, real i_rc):
-       De(i_De), a(i_a), r0(i_r0), rc(i_rc){}
+       De(i_De), a(i_a), r0(i_r0), rc(i_rc){} //!
   %! codeinsert: getCutOff
   %! codeinsert: ForceEnergy
   %! codeinsert: getTransverser
-%! codeblockend
+%! codeblockend !//
 \end{lstlisting}
 Pair potentials must include a function called \texttt{getCutOff} that returns
 the range of the potential interaction.
 \begin{lstlisting}
 %! codeblock: getCutOff
-  real getCutOff() { return rc; }
-%! codeblockend
+  real getCutOff() { return rc; } //!
+%! codeblockend !//
 \end{lstlisting}
 
 Next, we come to our first definition of a \textit{transverser}, a key concept 
@@ -1238,9 +1230,9 @@ of the parameters.
                 real i_De, real i_a, real i_r0):
                 box(i_box), rc(i_rc),
                 force(i_force), energy(i_energy),
-                De(i_De), a(i_a), r0(i_r0){}
+                De(i_De), a(i_a), r0(i_r0){} //!
     %! codeinsert: compute_and_set
-%! codeblockend
+%! codeblockend !//
 \end{lstlisting}
 It ends with two functions, one computes the force and energy for each pair 
 interaction, according to the Morse potential, and the other specifies what to 
@@ -1264,8 +1256,8 @@ do with the results.
       force[id] += make_real4(total.x, total.y, total.z, 0);
       energy[id] += total.w;
     }
-  };
-%! codeblockend
+  }; //!
+%! codeblockend !//
 \end{lstlisting}
 UAMMD includes additional functions designed to tweak the behaviour of your 
 transversers, but we won't need them for the time being.
@@ -1289,8 +1281,8 @@ the parameters and the references to the force and energy lists.
                                  access::mode::readwrite).raw();
     return ForceEnergy(box, rc, force, energy, De, a, r0);
   }
-};
-%! codeblockend
+}; //!
+%! codeblockend !//
 \end{lstlisting}
 
 That defined a new pair potential. You can probably imagine what comes next.
@@ -1314,8 +1306,8 @@ Adding the new interaction to the Verlet integrator follows the usual rules.
                               MorsePotential);
 
     integrator->addInteractor(interaction);
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 
 \begin{comment}
@@ -1428,14 +1420,14 @@ lowered the number of particles to only one thousand.
 %! codeblock: diatomicParticleData
   int numberOfParticles = 1000;
   auto particles
-    = make_shared<ParticleData>(numberOfParticles, sys);
-%! codeblockend
+    = make_shared<ParticleData>(numberOfParticles, sys); //!
+%! codeblockend !//
 \end{lstlisting}
 I also decreased the initial energies, to avoid atoms slamming into each other.
 \begin{lstlisting}
 %! codeblock: diatomicInitialEnergy
-  VerletParams.energy = 0.001;
-%! codeblockend
+  VerletParams.energy = 0.001; //!
+%! codeblockend !//
 \end{lstlisting}
 After the initialisation of positions, we set the values of the atomic masses 
 (as we will need them to adjust the speeds after any potential curve hopping).
@@ -1447,8 +1439,8 @@ After the initialisation of positions, we set the values of the atomic masses
                            access::mode::write);
     real atomicMass = 1.0;
     std::fill(mass.begin(), mass.end(), atomicMass);
-}
-%! codeblockend
+} //!
+%! codeblockend !//
 \end{lstlisting}
 Finally, before we turn to writing the new pair potential, let us update the 
 code that adds it to the integrator. Now we will obviously have to provide the 
@@ -1482,16 +1474,16 @@ forces.
   std::ofstream out(outputFile);
 
   int numberOfSteps = 100000;
-  int printEverynSteps = 100;
-%! codeblockend
+  int printEverynSteps = 100; //!
+%! codeblockend !//
 \end{lstlisting}
 Furthermore, before UAMMD calculates the interactions, it has to work out where 
 to place the bonds. Right above the call to \texttt{integrator->forwardTime()}, 
 we'll add a call to a function that we will write later on.
 \begin{lstlisting}
 %! codeblock: createDiatomicBonds
-    diatomicPotential->createBonds(particles, sys);
-%! codeblockend
+    diatomicPotential->createBonds(particles, sys); //!
+%! codeblockend !//
 \end{lstlisting}
 
 That concludes the changes to the main function in our Morse pair potential 
@@ -1505,8 +1497,8 @@ struct diatomic {
   real De, a, r0, rc;
   real sigma, epsilon;
   Box box;
-  thrust::device_vector<int> bonds;
-%! codeblockend
+  thrust::device_vector<int> bonds; //!
+%! codeblockend !//
 \end{lstlisting}
 The \texttt{bonds} vector will contain the list of partner ID numbers mentioned 
 above, with \texttt{-1} standing for no bond. The \texttt{getCutOff} obviously 
@@ -1518,8 +1510,8 @@ needs no changes, but the constructor should include the new parameter values.
            real i_rc, Box i_box):
        De(i_De), a(i_a), r0(i_r0),
        sigma(i_sigma), epsilon(i_epsilon),
-       rc(i_rc), box(i_box) {}
-%! codeblockend
+       rc(i_rc), box(i_box) {} //!
+%! codeblockend !//
 \end{lstlisting}
 Now we can write a function to sort out the bonds. Assume that the simulation 
 begins without bonds. We resize the bonds vector to the number of particles and 
@@ -1533,11 +1525,11 @@ around because we won't change the number of particles.
     int numberOfParticles = particles->getNumParticles();
 
     bonds.resize(numberOfParticles, -1);
-    int * bondlist = thrust::raw_pointer_cast(bonds.data());
+    int * bondlist = thrust::raw_pointer_cast(bonds.data()); //!
     %! codeinsert: diatomicParticleInfo
     %! codeinsert: diatomicBreakBonds
     %! codeinsert: diatomicFormBonds
-%! codeblockend
+%! codeblockend !//
 \end{lstlisting}
 The \texttt{createBonds} function needs information from particleData: the
 positions, velocities, masses, ID numbers and indices.
@@ -1557,8 +1549,8 @@ positions, velocities, masses, ID numbers and indices.
         = particles->getId(access::location::cpu,
                            access::mode::read);
       auto index
-        = particles->getIdOrderedIndices(access::location::cpu);
-%! codeblockend
+        = particles->getIdOrderedIndices(access::location::cpu); //!
+%! codeblockend !//
 \end{lstlisting}
 Now we will look for broken bonds, that is, linked particles that have separated 
 farther than $r_c$. If they have strayed enough from each other, we set their
@@ -1576,8 +1568,8 @@ bond indices to $-1$.
             bonds[j] = bonds[id[i]] = -1;
           }
         }
-      }
-%! codeblockend
+      } //!
+%! codeblockend !//
 \end{lstlisting}
 You should find the loop above easy enough to understand and, with some basic 
 knowledge of CUDA, easy to parallelise.
@@ -1601,18 +1593,18 @@ The double loop below inspects all pairs of unbound particles and derives the
           if(bonds[id[j]] >= 0) continue;
           const real3 rij
             = box.apply_pbc(make_real3(position[j]) - ri);
-          const real r2 = dot(rij, rij);
+          const real r2 = dot(rij, rij); //!
   %! codeinsert: diatomicLinkAtoms
   %! codeinsert: diatomicCurveHopping
-%! codeblockend
+%! codeblockend !//
 \end{lstlisting}
 As soon as it finds particles within the right range, it links them.
 \begin{lstlisting}
 %! codeblock: diatomicLinkAtoms
           if(r2 <= rc*rc) {
             bonds[id[j]] = id[i];
-            bonds[id[i]] = id[j];
-%! codeblockend
+            bonds[id[i]] = id[j]; //!
+%! codeblockend !//
 \end{lstlisting}
 The \texttt{createBonds} function ends by working out the difference in 
 potential energy due to the curve hopping and adjusting the velocitites in such 
@@ -1638,8 +1630,8 @@ a way that the system conserves the total energy and linear momentum.
         }
       }
     }
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 
 We still have to write the \texttt{ForceEnergy} transverser and the 
@@ -1665,10 +1657,10 @@ information than in the previous section.
                 force(i_force), energy(i_energy),
                 De(i_De), a(i_a), r0(i_r0),
                 sigma(i_sigma), epsilon(i_epsilon),
-                bondlist(i_bondlist), id(i_id){}
+                bondlist(i_bondlist), id(i_id){} //!
   %! codeinsert: diatomicGetInfo
   %! codeinsert: diatomicCompute
-%! codeblockend
+%! codeblockend !//
 \end{lstlisting}
 In this case, we cannot compute the forces and energies exclusively from the 
 particle positions. We also need to know the particle IDs to identify linked
@@ -1679,8 +1671,8 @@ ID.
 %! codeblock: diatomicGetInfo
     __device__ int getInfo(int index){
       return id[index];
-    }
-%! codeblockend
+    } //!
+%! codeblockend !//
 \end{lstlisting}
 UAMMD will feed the output of \texttt{getInfo} into the latter two parameters of 
 the following \texttt{compute} function, which checks for bonds and chooses the 
@@ -1696,17 +1688,19 @@ right interaction potential.
           const real expar = exp(-a*(r - r0));
           const real oneminusexpar = real(1.0) - expar;
           return make_real4(-2.0*De*a*((expar - 1)*expar/r)*rij,
-                            De*(oneminusexpar*oneminusexpar - real(1.0)));
+                            De*(oneminusexpar*oneminusexpar
+                                - real(1.0)));
         } else {
           const real invr2 = (sigma*sigma)/r2;
           const real invr6 = invr2*invr2*invr2;
-          return make_real4(epsilon*(real(24.0) - real(48.0)*invr6)*invr6*invr2*rij,
+          return make_real4(epsilon*invr6*invr2
+                            *(real(24.0) - real(48.0)*invr6)*rij,
                             4*epsilon*invr6*(invr6 - real(1.0)));
         }
       }
       else return real4();
-    }
-%! codeblockend
+    } //!
+%! codeblockend !//
 \end{lstlisting}
 The \texttt{diatomic} structure ends with a \texttt{getForceTransverser} method 
 that feeds the necessary information into the \texttt{ForceEnergy} constructor.
@@ -1723,10 +1717,11 @@ that feeds the necessary information into the \texttt{ForceEnergy} constructor.
       = particles->getId(access::location::gpu,
                          access::mode::read);
     int * bondlist = thrust::raw_pointer_cast(bonds.data());
-    return ForceEnergy(box, rc, force, energy, De, a, r0, sigma, epsilon, bondlist, id.raw());
+    return ForceEnergy(box, rc, force, energy, De, a, r0,
+                       sigma, epsilon, bondlist, id.raw());
   }
-};
-%! codeblockend
+}; //!
+%! codeblockend !//
 \end{lstlisting}
 
 There you have it: a complete program simulating diatomic molecule formation and 
@@ -1741,12 +1736,13 @@ However, writing your own simulation from scratch may lead to even greater
 satisfaction and perhaps less work than trying to adapt your algorithm to the 
 UAMMD infrastructure.
 
+\bigbreak
+
 These first two chapters have given you more than enough material to create your 
 own simulations and use the output to create videos of spheres flying around and 
 colliding in your own virtual world. But scientists aim at describing the real 
 world, and that involves measuring interesting quantities in your system and 
 relating them to physical objects, as we will see in the next chapter.
-
 
 \begin{comment}
 The complete diatomic potential data structure follows.

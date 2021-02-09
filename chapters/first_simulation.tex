@@ -33,8 +33,8 @@ int main(int argc, char *argv[]){
   sys->finish(); /* UAMMD */
 
   return 0;
-}
-%! codeend
+}//!
+%! codeend !//
 \end{lstlisting}
 Compile the code with
 \begin{verbatim}
@@ -77,8 +77,8 @@ with the following lines after declaring \texttt{sys}.
 %! codeblock: particleData
   int numberOfParticles = 100000;
   auto particles
-    = make_shared<ParticleData>(numberOfParticles, sys);
-%! codeblockend
+    = make_shared<ParticleData>(numberOfParticles, sys);//!
+%! codeblockend !//
 \end{lstlisting}
 From now on, we have access to all the properties of our particles. We might, 
 for example, decide to distribute the particles randomly within an imaginary 
@@ -99,8 +99,8 @@ replace the ``Hello, UAMMD!'' line above.\label{initialConditions}
     for(int i = 0; i < numberOfParticles; ++i)
       position[i]
         = make_real4(sys->rng().uniform3(-0.5, 0.5), 0)*L;
-  }
-%! codeblockend
+  }//!
+%! codeblockend !//
 \end{lstlisting}
 In the \texttt{for} loop we go over the list of positions and assign to each of
 them a random four-dimensional vector. The first three components are random
@@ -124,7 +124,6 @@ values.
     auto velocities
       = particles->getVel(access::location::cpu,
                           access::mode::read);
-%!
 \end{lstlisting}
 Other particle properties work similarly: use \texttt{getMass},
 \texttt{getRadius}, \texttt{getCharge}, \texttt{getForce} or \texttt{getEnergy}.
@@ -144,8 +143,6 @@ calculate the force on each particle. If you wish to track trajectories, for
 example, then you need to identify the particles by name. So, if you would
 like to print out the positions in the same order every time, use this:
 
-\clearpage
-
 \label{particlePositions}
 \begin{lstlisting}
       auto position
@@ -156,7 +153,6 @@ like to print out the positions in the same order every time, use this:
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
         out<<position[index[id]]<<endl;
-%!
 \end{lstlisting}
 After getting the positions, you get a list of the indices ordered by name. Say
 that you are searching for a particle with \texttt{id = 3}. Then
@@ -174,7 +170,6 @@ the particles do not interact, and treat them as atoms in an ideal gas.
 We need some more functionality, which we import into our project with
 \begin{lstlisting}
 # include "Integrator/VerletNVE.cuh"
-%!
 \end{lstlisting}
 at the beginning of the file, after including the \texttt{uammd.cuh} header 
 file. Now we can use the Verlet scheme to integrate the equations of motion, but 
@@ -189,8 +184,8 @@ computational cost. We will choose his method here.
   Verlet::Parameters VerletParams;
   VerletParams.dt = 0.01;
   VerletParams.initVelocities=true;
-  VerletParams.energy = 1.0;
-%! codeblockend
+  VerletParams.energy = 1.0;//!
+%! codeblockend !//
 \end{lstlisting}
 In addition, we use the algorithm to initialise the velocities to random values
 in such a way that the energy per particle equals \texttt{1.0}. Having set the
@@ -198,8 +193,8 @@ parameters, we activate the integrator with the following line.
 \begin{lstlisting}
 %! codeblock: Verlet
   auto integrator
-    = make_shared<Verlet>(particles, sys, VerletParams);
-%! codeblockend
+    = make_shared<Verlet>(particles, sys, VerletParams);//!
+%! codeblockend !//
 \end{lstlisting}
 
 Leaving their initial random positions, we allow the atoms to drift away. The 
@@ -210,8 +205,8 @@ program, we decide, will write the positions to \texttt{free\_expansion.dat}.
   std::ofstream out(outputFile);
 
   int numberOfSteps = 1000;
-  int printEverynSteps = 100;
-%! codeblockend
+  int printEverynSteps = 100; //!
+%! codeblockend !//
 \end{lstlisting}
 Although we will tell the computer to calculate one thousand time steps, we
 will only record the state of the system once every one hundred steps. 
@@ -227,8 +222,8 @@ To advance the system in time, use the integrator's \texttt{forwardTime} method.
       /* ... Output particle positions ... */
       %! codeinsert: printPositions
     }
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 You can easily replace the comment above with the output code explained at the
 end of section \ref{physical_system} (page \pageref{particlePositions}).
@@ -263,8 +258,8 @@ int main(int argc, char *argv[]){
   sys->finish();
 
   return 0;
-}
-%! codeend
+} //!
+%! codeend !//
 \end{lstlisting}
 \end{comment}
 
@@ -310,7 +305,6 @@ following code snippet after the ``\texttt{real L}'' declaration (see page
          periodicityZ = true;
     box.setPeriodicity(periodicityX, periodicityY,
                        periodicityZ);
-%!
 \end{lstlisting}
 The coordinates that your program should output really depend on your interests. 
 Do you wish to follow the motion of the particles that started off in the 
@@ -320,7 +314,6 @@ the contents of the simulation box? Then print out the positions of the images
 that lie within that box with
 \begin{lstlisting}
   out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
-%!
 \end{lstlisting}
 \begin{comment}
 \begin{lstlisting}
@@ -339,8 +332,8 @@ that lie within that box with
 
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
-        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
-%! codeblockend
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl; //!
+%! codeblockend !//
 \end{lstlisting}
 \end{comment}
 For example, imagine an ideal gas trapped between two horizontal pistons which
@@ -351,7 +344,6 @@ above to \texttt{false} and making the box infinite in that direction
 \begin{lstlisting}
     Box box(make_real3(L, L,
               std::numeric_limits<real>::infinity()));
-%!
 \end{lstlisting}
 Fig. \ref{freeExpansion} displays the final state of
 the gas as produced by the simulation we have written above.
@@ -383,7 +375,6 @@ letting them reshuffle during the initial stages of the simulation. As an
 illustration, include the right header,
 \begin{lstlisting}
 # include "utils/InitialConditions.cuh"
-%!
 \end{lstlisting}
 and change the inital conditions block to
 \begin{lstlisting}
@@ -400,8 +391,8 @@ and change the inital conditions block to
                                 numberOfParticles, sc);
 
     std::copy(initial.begin(), initial.end(), position.begin());
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 The ``\texttt{sc}'' parameter in \texttt{initLattice} refers to ``simple
 cubic''. Other options are face-centred cubic (\texttt{fcc}), body-centred cubic
@@ -416,8 +407,8 @@ cubic''. Other options are face-centred cubic (\texttt{fcc}), body-centred cubic
   bool periodicityX = true, periodicityY = true,
        periodicityZ = true;
   box.setPeriodicity(periodicityX, periodicityY,
-                     periodicityZ);
-%! codeblockend
+                     periodicityZ); //!
+%! codeblockend !//
 \end{lstlisting}
 \end{comment}
 
@@ -440,7 +431,6 @@ then write something like this:
       velocity[i].x
         = sin(2*M_PI*position[i].z/L);
   }
-%!
 \end{lstlisting}
 
 While we are on the subject of writing your own mathematical functions, I must 
@@ -506,7 +496,6 @@ Take each point in turn, beginning with the potential function. To incorporate
 it, we add
 \begin{lstlisting}
 # include "Interactor/Potential/Potential.cuh"
-%!
 \end{lstlisting}
 to our include list at the beginning of the code file. Fortunately, the
 Lennard-Jones potential has already been implemented in UAMMD, so we
@@ -521,8 +510,8 @@ only need to specify its parameters.
     LJParams.cutOff = 2.5*LJParams.sigma;
     LJParams.shift = false;
     LJPotential->setPotParameters(0, 0, LJParams);
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 You should find these parameters self-evident with the exception of the first
 two zeros in \texttt{setPotParameters}. These indicate that we are setting the
@@ -531,14 +520,12 @@ example, a different type of interaction between particles of type 0 and 1,
 then we would have a similar listing ending in something like
 \begin{lstlisting}
     LJPotential->setPotParameters(0, 1, LJParams2);
-%!
 \end{lstlisting}
 
 Step two mentioned creating an ``interactor''. We will use the
 \texttt{PairForces} module.
 \begin{lstlisting}
 # include "Interactor/PairForces.cuh"
-%!
 \end{lstlisting}
 
 Taking the point of view of a physicist, think of an interactor as an 
@@ -564,8 +551,8 @@ potential that we defined above (\texttt{LJPotential}).
                               LJPotential);
 
     integrator->addInteractor(interaction);
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 The code block ends with step three: adding the interaction to the integrator
 with the \texttt{addIntegrator} method.
@@ -614,8 +601,8 @@ int main(int argc, char *argv[]){
   sys->finish();
 
   return 0;
-}
-%! codeend
+} //!
+%! codeend !//
 \end{lstlisting}
 \end{comment}
 A plot of the final positions after running the program will probably not look
@@ -626,7 +613,6 @@ obvious spike that you will not find in the case of an ideal gas (see Figure
 commenting out the \texttt{addInteractor} line to deactivate it.
 \begin{lstlisting}
     /* integrator->addInteractor(interaction); */
-%!
 \end{lstlisting}
 The simulation would then generate the plot on the left of Figure
 \ref{Lennard-Jones.rdf}.
@@ -663,7 +649,6 @@ command-line or an external file? There are many ways to achieve this, but we
 will focus on a neat tool written for UAMMD. You get it for free by inserting
 \begin{lstlisting}
 # include "utils/InputFile.h"
-%!
 \end{lstlisting}
 at the top of your code. Now let us create a data structure containing a list of
 all the parameters that we need to run our simulation.
@@ -680,8 +665,8 @@ struct InputParameters {
   std::string outputFile;
   int numberOfSteps;
   int printEverynSteps;
-};
-%! codeblockend
+}; //!
+%! codeblockend !//
 \end{lstlisting}
 Next, we ask the program to input the variables from an external file named
 \texttt{data.main} and store the values in our data structure. The rest of the
@@ -692,10 +677,10 @@ all the data from the file. We will write the following function before our
 \begin{lstlisting}
 %! codeblock: readParameterFile
 InputParameters readParameterFile(std::shared_ptr<System> sys)
-{
+{ //!
 %! codeinsert: defaultFile
 %! codeinsert: readParameters
-%! codeblockend
+%! codeblockend !//
 \end{lstlisting}
 If the \texttt{data.main} file did not exist when the program was run, we should
 create it containing some safe default values.
@@ -711,8 +696,8 @@ create it containing some safe default values.
 
     /* And so on for all the other parameters ... */
     %! codeinsert: moreDefaultParameters
-  }
-%! codeblockend
+  } //!
+%! codeblockend !//
 \end{lstlisting}
 \begin{comment}
 \begin{lstlisting}
@@ -723,8 +708,8 @@ create it containing some safe default values.
     defaultParameters<<"particleEnergy 1.0"<<endl;
     defaultParameters<<"outputFile Lennard-Jones.dat"<<endl;
     defaultParameters<<"numberOfSteps 10000"<<endl;
-    defaultParameters<<"printEverynSteps 1000"<<endl;
-%! codeblockend
+    defaultParameters<<"printEverynSteps 1000"<<endl; //!
+%! codeblockend !//
 \end{lstlisting}
 \end{comment}
 To read in the data from the parameter file, we open \texttt{data.main} as an
@@ -745,8 +730,8 @@ input file which we will refer to as \texttt{parameterFile}.
   %! codeinsert: readMoreParameters
 
   return params;
-}
-%! codeblockend
+} //!
+%! codeblockend !//
 \end{lstlisting}
 \begin{comment}
 \begin{lstlisting}
@@ -764,8 +749,8 @@ input file which we will refer to as \texttt{parameterFile}.
   parameterFile.getOption("numberOfSteps",
     InputFile::Required)>>params.numberOfSteps;
   parameterFile.getOption("printEverynSteps",
-    InputFile::Required)>>params.printEverynSteps;
-%! codeblockend
+    InputFile::Required)>>params.printEverynSteps; //!
+%! codeblockend !//
 \end{lstlisting}
 \end{comment}
 In the main function, after declaring the System \texttt{sys}, we read in all
@@ -773,15 +758,14 @@ the parameter values with
 \begin{lstlisting}
 %! codeblock: loadParameters
   %! codeinsert: loadParameterMsg
-  InputParameters simParams = readParameterFile(sys);
-%! codeblockend
+  InputParameters simParams = readParameterFile(sys); //!
+%! codeblockend !//
 \end{lstlisting}
 Whenever we need a parameter value in the remaining code, we just assign it from
 the \texttt{simParams} data structure, as in
 \begin{lstlisting}
   int numberOfParticles = simParams.numberOfParticles;
   real L = simParams.L;
-%!
 \end{lstlisting}
 and so on.
 
@@ -816,8 +800,8 @@ different priorities. To inform the user that the program will read the
 parameter file, write
 \begin{lstlisting}
 %! codeblock: loadParameterMsg
-  sys->log<System::MESSAGE>("Reading parameters from data.main.");
-%! codeblockend
+  sys->log<System::MESSAGE>("Reading parameters from data.main."); //!
+%! codeblockend !//
 \end{lstlisting}
 just before you call the \texttt{readParameterFile} function in \texttt{main}.
 
@@ -825,8 +809,8 @@ Suppose the \texttt{data.main} file did not exist. Then we would issue a warning
 saying that the program has created this file with a set of default values.
 \begin{lstlisting}
 %! codeblock: defaultFileMsg
-    sys->log<System::WARNING>("File data.main not found. Creating file with default values.");
-%! codeblockend
+    sys->log<System::WARNING>("File data.main not found. Creating file with default values."); //!
+%! codeblockend !//
 \end{lstlisting}
 What if the operating system did not allow the program to write to the directory
 and the file was not created? That would prove catastrophic for the subsequent
@@ -837,8 +821,8 @@ program.
     if(not defaultParameters.is_open()) {
       sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
       exit(-1);
-    }
-%! codeblockend
+    } //!
+%! codeblockend !//
 \end{lstlisting}
 would exit the program if the file was not open. The UAMMD System provides a
 whole set of message types listed here in decreasing order of priority:

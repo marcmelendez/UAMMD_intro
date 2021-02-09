@@ -8,15 +8,15 @@ using namespace uammd;
 using std::make_shared;
 using std::endl;
 
-struct Morse {
+struct Morse { //!
   struct BondInfo {
     real De, a, r0;
-  };
+  }; //!
   static __host__ BondInfo readBond(std::istream &in) {
     BondInfo MorseParams;
     in>>MorseParams.De>>MorseParams.a>>MorseParams.r0;
     return MorseParams;
-  }
+  } //!
   inline __device__ real energy(int i, int j,
                                  const real3 &rij,
                                  const BondInfo &MorseParams) {
@@ -24,7 +24,7 @@ struct Morse {
     real oneminusexpar
       = real(1.0) - exp(-MorseParams.a*(r - MorseParams.r0));
     return MorseParams.De*(oneminusexpar*oneminusexpar - real(1.0));
-  }
+  } //!
   inline __device__ real3 force(int i, int j,
                                 const real3 &rij,
                                 const BondInfo &MorseParams) {
@@ -33,23 +33,25 @@ struct Morse {
     return real(2.0)*MorseParams.De*MorseParams.a
                     *((expar - 1)*expar/r)*rij;
   }
-};
+}; //!
 
 struct gravitationalForce{
   real g;
-  gravitationalForce(real numericalValueOfg):g(numericalValueOfg){}
-  __device__ __forceinline__ real3 force(const real4 &position, const real &mass){
+  gravitationalForce(real numericalValueOfg):g(numericalValueOfg){} //!
+  __device__ __forceinline__ real3 force(const real4 &position,
+                                         const real &mass){
     return make_real3(0.0f, -mass*g, 0.0f);
-  }
-  __device__ __forceinline__ real energy(const real4 &position, const real &mass){
+  } //!
+  __device__ __forceinline__ real energy(const real4 &position,
+                                         const real &mass){
     return mass*g*position.y;
-  }
+  } //!
   std::tuple<const real4 *, const real *> getArrays(ParticleData *particles){
     auto position = particles->getPos(access::location::gpu, access::mode::read);
     auto mass = particles->getMass(access::location::gpu, access::mode::read);
     return std::make_tuple(position.raw(), mass.raw());
-  }
-};
+  } //!
+}; //!
 
 int main(int argc, char *argv[]){
 
@@ -72,7 +74,7 @@ int main(int argc, char *argv[]){
 
     real ropeLength = 1.0;
     for(int i = 0; i < numberOfParticles; ++i) {
-      position[i].x = (1 + i)*(ropeLength/(numberOfParticles - 1));
+      position[i].x = (1 + i)*(ropeLength/(numberOfParticles - 1)); //!
       position[i].y = position[i].z = position[i].w = real(0.0);
       velocity[i].x = velocity[i].y = velocity[i].z = real(0.0);
       mass[i] = real(0.001);
@@ -85,7 +87,7 @@ int main(int argc, char *argv[]){
   VerletParams.initVelocities=false;
 
   auto integrator
-    = make_shared<Verlet>(particles, sys, VerletParams);
+    = make_shared<Verlet>(particles, sys, VerletParams);//!
 
   {
     std::ofstream bondInfo("data.bonds");
@@ -101,7 +103,7 @@ int main(int argc, char *argv[]){
               <<De<<" "<<a<<" "<<r0<<endl;
     }
     bondInfo<<"1"<<endl;
-    bondInfo<<"0 0 0 0 "<<De<<" "<<a<<" "<<r0<<endl;
+    bondInfo<<"0 0 0 0 "<<De<<" "<<a<<" "<<r0<<endl; //!
   }
 
   {
@@ -112,14 +114,14 @@ int main(int argc, char *argv[]){
                                          bondParameters);
 
     integrator->addInteractor(bonds);
-  }
+  } //!
 
   {
     auto gravity
       = make_shared<ExternalForces<gravitationalForce>>(particles, sys, make_shared<gravitationalForce>(real(9.8)));
 
     integrator->addInteractor(gravity);
-  }
+  } //!
 
   std::string outputFile = "MorseChain.dat";
   std::ofstream out(outputFile);

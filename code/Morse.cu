@@ -13,8 +13,8 @@ struct Morse {
   real De, a, r0, rc;
 
   Morse(real i_De, real i_a, real i_r0, real i_rc):
-       De(i_De), a(i_a), r0(i_r0), rc(i_rc){}
-  real getCutOff() { return rc; }
+       De(i_De), a(i_a), r0(i_r0), rc(i_rc){} //!
+  real getCutOff() { return rc; } //!
   struct ForceEnergy {
     real4 * force;
     real * energy;
@@ -26,7 +26,7 @@ struct Morse {
                 real i_De, real i_a, real i_r0):
                 box(i_box), rc(i_rc),
                 force(i_force), energy(i_energy),
-                De(i_De), a(i_a), r0(i_r0){}
+                De(i_De), a(i_a), r0(i_r0){} //!
     __device__ real4 compute(real4 ri, real4 rj){
       const real3 rij = box.apply_pbc(make_real3(rj)-make_real3(ri));
       const real r2 = dot(rij, rij);
@@ -44,7 +44,7 @@ struct Morse {
       force[id] += make_real4(total.x, total.y, total.z, 0);
       energy[id] += total.w;
     }
-  };
+  }; //!
   ForceEnergy getForceTransverser(Box box, std::shared_ptr<ParticleData> sys){
     auto force = sys->getForce(access::location::gpu,
                                access::mode::readwrite).raw();
@@ -52,7 +52,7 @@ struct Morse {
                                  access::mode::readwrite).raw();
     return ForceEnergy(box, rc, force, energy, De, a, r0);
   }
-};
+}; //!
 
 int main(int argc, char *argv[]){
 
@@ -60,7 +60,7 @@ int main(int argc, char *argv[]){
 
   int numberOfParticles = 100000;
   auto particles
-    = make_shared<ParticleData>(numberOfParticles, sys);
+    = make_shared<ParticleData>(numberOfParticles, sys);//!
 
   real L = 128;
 
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]){
   bool periodicityX = true, periodicityY = true,
        periodicityZ = true;
   box.setPeriodicity(periodicityX, periodicityY,
-                     periodicityZ);
+                     periodicityZ); //!
   {
     auto position
       = particles->getPos(access::location::cpu,
@@ -78,16 +78,16 @@ int main(int argc, char *argv[]){
                                 numberOfParticles, sc);
 
     std::copy(initial.begin(), initial.end(), position.begin());
-  }
+  } //!
 
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = 0.01;
   VerletParams.initVelocities=true;
-  VerletParams.energy = 1.0;
+  VerletParams.energy = 1.0;//!
 
   auto integrator
-    = make_shared<Verlet>(particles, sys, VerletParams);
+    = make_shared<Verlet>(particles, sys, VerletParams);//!
 
   real De = 1.0;
   real a = 2.0;
@@ -106,7 +106,7 @@ int main(int argc, char *argv[]){
                               MorsePotential);
 
     integrator->addInteractor(interaction);
-  }
+  } //!
 
   std::string outputFile = "Morse.dat";
   std::ofstream out(outputFile);
@@ -127,9 +127,9 @@ int main(int argc, char *argv[]){
 
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
-        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl; //!
     }
-  }
+  } //!
 
   sys->finish();
 

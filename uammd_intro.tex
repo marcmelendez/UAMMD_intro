@@ -22,13 +22,15 @@
 \usepackage{listings}
 \lstset{language = C++,
         frame = single,
-        framextopmargin = \baselineskip,
+        framextopmargin = \smallskipamount,
+        framexbottommargin = \smallskipamount,
         morecomment = [is]{\%!}{\^^M},
         basicstyle = \footnotesize,
         breaklines = true,
-        postbreak = \mbox{$\hookrightarrow$\ }}
+        postbreak = \mbox{$\hookrightarrow$\ },
+        escapeinside = {//!}{!//}}
 \makeatletter
-\lst@AddToHook{OnEmptyLine}{\vspace{\dimexpr-\baselineskip+\smallskipamount}}
+\lst@AddToHook{OnEmptyLine}{\vspace{\dimexpr-\baselineskip+1.25\smallskipamount}}
 \makeatother
 \usepackage{hyperref}
 \hypersetup{
@@ -203,6 +205,8 @@ I have copied the entire example programs discussed in the main text into the
 
 %! codefile: code/README.md
 # Example programs
+
+The comment ``//!`` marks the ends of code snippets in the text.
 
 ## Introduction
 

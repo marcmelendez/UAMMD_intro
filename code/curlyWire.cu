@@ -35,18 +35,18 @@ int main(int argc, char *argv[]){
       position[i].w = 0;
       velocity[i].x = velocity[i].y = velocity[i].z = 0;
     }
-  }
+  } //!
 
   real L = std::numeric_limits<real>::infinity();
-  Box box(make_real3(L, L, L));
+  Box box(make_real3(L, L, L)); //!
 
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
-  VerletParams.dt = real(0.00001);
+  VerletParams.dt = real(0.00001); //!
   VerletParams.initVelocities=false;
 
   auto integrator
-    = make_shared<Verlet>(particles, sys, VerletParams);
+    = make_shared<Verlet>(particles, sys, VerletParams);//!
 
   {
     std::ofstream bondInfo("data.bonds");
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]){
       exit(-1);
     }
 
-    real K = 1.0, theta0 = 4*M_PI/(numberOfParticles - 1);
+    real K = 1.0, theta0 = 4*M_PI/(numberOfParticles - 1); //!
     angularInfo<<(numberOfParticles - 2)<<endl;
     for(int i = 0; i < numberOfParticles - 2; ++i) {
       angularInfo<<i<<" "<<(i + 1)<<" "<<(i + 2)<<" "<<K<<" "<<theta0<<endl;
@@ -88,16 +88,16 @@ int main(int argc, char *argv[]){
       torsionalInfo<<i<<" "<<(i + 1)<<" "<<(i + 2)<<" "<<(i + 3)
                    <<" "<<K<<" "<<phi0<<endl;
     }
-  }
+  } //!
 
   {
     using HarmonicBonds = BondedForces<BondedType::Harmonic>;
     HarmonicBonds::Parameters bondParameters;
     bondParameters.file = "data.bonds";
-    auto bonds = make_shared<HarmonicBonds>(particles, sys, bondParameters);
+    auto bonds = make_shared<HarmonicBonds>(particles, sys, bondParameters); //!
 
     integrator->addInteractor(bonds);
-  }
+  } //!
 
   {
     using angularPotentials
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]){
                                        angularParameters,
                                        std::make_shared<AngularBondedForces_ns::AngularBond>(box));
     integrator->addInteractor(angularForces);
-  }
+  } //!
 
   {
     using torsionalPotentials
@@ -121,13 +121,13 @@ int main(int argc, char *argv[]){
                                         torsionalParameters,
                                         std::make_shared<TorsionalBondedForces_ns::TorsionalBond>(box));
     integrator->addInteractor(torsionalForces);
-  }
+  } //!
 
   std::string outputFile = "curlyWire.dat";
   std::ofstream out(outputFile);
 
   int numberOfSteps = 600000;
-  int printEverynSteps = 10000;
+  int printEverynSteps = 10000; //!
 
   for(int step = 0; step < numberOfSteps; ++step) {
     integrator->forwardTime();
