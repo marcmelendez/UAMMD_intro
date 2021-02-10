@@ -31,6 +31,11 @@ The comment ``//!`` marks the ends of code snippets in the text.
 * `MorseChain.cu`: A chain of particles connected with Morse bond potentials and
    attached to the origin in a uniform gravitational field.
 * `Morse.cu`: Particles in a periodic box interacting through a Morse potential.
-* `diatomic.cu`: A modification of `Morse.cu` in which bonds can only link  
-   particles together in pairs. All other interactions are treated with 
+* `diatomic.cu`: A modification of `Morse.cu` in which bonds can only link
+   particles together in pairs. All other interactions are treated with
    Lennard-Jones potentials.
+
+## Measuring
+
+* `rubberBallE.cpp`: A version of the `rubberBall.cpp` from the introduction 
+   which also outputs the mechanical energy of the ball.
