@@ -778,6 +778,22 @@ sign (\#), which you can use to insert comments in your \texttt{data.main} file.
 Furthermore, you can define entries as ``Optional'' instead of ``Required''. The
 program will continue even if it does not find the option in that file.
 
+Do not use ``\texttt{shell}'' as the name of a parameter.  This reserved word 
+provides a neat tool that allows you to execute instructions on the 
+command-line. For example, on a Unix-like system you could make a copy of the 
+parameter file by writing the following command at the end of the 
+\texttt{data.main} file.
+\begin{lstlisting}
+shell cp data.main LJparameters.dat
+\end{lstlisting}
+This would create a file called \texttt{LJparameters.dat} containing a copy of 
+the values that you ran your simulation with. You could then include a time 
+stamp at the end by adding
+\begin{lstlisting}
+shell echo "# Simulation run on $(date)." >> LJparameters.dat
+\end{lstlisting}
+UAMMD executes \texttt{shell} commands in the order found in the parameter file.
+
 \section{Logging}
 
 In his ``At Home in the Universe'', John Archibald Wheeler defined an expert as
