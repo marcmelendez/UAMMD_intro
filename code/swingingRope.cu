@@ -11,15 +11,13 @@ using std::endl;
 struct gravitationalForce{
   real g;
   gravitationalForce(real numericalValueOfg):g(numericalValueOfg){} //!
-  __device__ __forceinline__ real3 force(const real4 &position,
-                                         const real &mass){
+  __device__ real3 force(real4 position, real mass){
     return make_real3(0.0f, -mass*g, 0.0f);
   } //!
-  __device__ __forceinline__ real energy(const real4 &position,
-                                         const real &mass){
+  __device__ real energy(real4 position, real mass){
     return mass*g*position.y;
   } //!
-  std::tuple<const real4 *, const real *> getArrays(ParticleData *particles){
+  auto getArrays(ParticleData *particles){
     auto position = particles->getPos(access::location::gpu, access::mode::read);
     auto mass = particles->getMass(access::location::gpu, access::mode::read);
     return std::make_tuple(position.raw(), mass.raw());

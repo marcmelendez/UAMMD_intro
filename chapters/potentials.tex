@@ -292,8 +292,7 @@ The second item (the force) equals the mass of the particle times $-g$ in the
 $y$ direction.
 \begin{lstlisting}
 %! codeblock: gravityForce
-  __device__ __forceinline__ real3 force(const real4 &position,
-                                         const real &mass){
+  __device__ real3 force(real4 position, real mass){
     return make_real3(0.0f, -mass*g, 0.0f);
   } //!
 %! codeblockend !//
@@ -301,8 +300,7 @@ $y$ direction.
 Next, we write the function for the gravitational potential energy.
 \begin{lstlisting}
 %! codeblock: gravityEnergy
-  __device__ __forceinline__ real energy(const real4 &position,
-                                         const real &mass){
+  __device__ real energy(real4 position, real mass){
     return mass*g*position.y;
   } //!
 %! codeblockend !//
@@ -311,7 +309,7 @@ We end the data structure telling the interaction where to get the position and
 mass information.
 \begin{lstlisting}
 %! codeblock: gravityParticleInfo
-  std::tuple<const real4 *, const real *> getArrays(ParticleData *particles){
+  auto getArrays(ParticleData *particles){
     auto position = particles->getPos(access::location::gpu, access::mode::read);
     auto mass = particles->getMass(access::location::gpu, access::mode::read);
     return std::make_tuple(position.raw(), mass.raw());
@@ -1076,6 +1074,15 @@ problem, I began with the whole chain shifted slightly to the right.
       position[i].x = (1 + i)*(ropeLength/(numberOfParticles - 1)); //!
 %! codeblockend !//
 \end{lstlisting}
+Of course, this does not prevent particles from overlapping later on in the 
+simulation. If you wished to carry out serious work with Morse bonds, you should 
+handle the $\|\mathbf{r}\| = 0$ case separately. For the energy, for example, 
+after calculating \texttt{real r = sqrtf(dot(rij, rij))} you could deal with
+overlap by writing
+\begin{lstlisting}
+    if(r == 0) return real(0.0);
+\end{lstlisting}
+and similarly for the force (but returning a \texttt{real3} zero vector).
 
 \begin{figure}
   \centering
@@ -1208,10 +1215,10 @@ the range of the potential interaction.
 \end{lstlisting}
 
 Next, we come to our first definition of a \textit{transverser}, a key concept 
-in the UAMMD infrastructure, likely named after the action of traversing a list 
-(the word \textit{traverser} apparently didn't sound cool enough, though). 
-You'll understand the idea easily. For each particle, we wish to apply a 
-function to each particle-neighbour pair. In this case, we wish to compute the 
+in the UAMMD infrastructure, named after the action of traversing a list to 
+transform data (the word \textit{traverser} apparently didn't sound cool enough, 
+though). You'll understand the idea easily. For each particle, we wish to apply 
+a function to each particle-neighbour pair. In this case, we wish to compute the 
 force and energy due to the interactions of a particle with each of its 
 neighbours.
 
