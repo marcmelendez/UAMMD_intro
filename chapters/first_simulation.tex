@@ -183,7 +183,7 @@ computational cost. We will choose his method here.
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = 0.01;
-  VerletParams.initVelocities=true;
+  VerletParams.initVelocities = true;
   VerletParams.energy = 1.0;//!
 %! codeblockend !//
 \end{lstlisting}
@@ -508,7 +508,7 @@ only need to specify its parameters.
     LJParams.epsilon = 1.0;
     LJParams.sigma = 1.0;
     LJParams.cutOff = 2.5*LJParams.sigma;
-    LJParams.shift = false;
+    LJParams.shift = true;
     LJPotential->setPotParameters(0, 0, LJParams);
   } //!
 %! codeblockend !//
@@ -919,7 +919,7 @@ int main(int argc, char *argv[]){
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = simParams.dt;
-  VerletParams.initVelocities=true;
+  VerletParams.initVelocities = true;
   VerletParams.energy = simParams.particleEnergy;
 
   %! codeinsert: Verlet
@@ -930,7 +930,7 @@ int main(int argc, char *argv[]){
     LJParams.epsilon = simParams.epsilon;
     LJParams.sigma = simParams.sigma;
     LJParams.cutOff = simParams.cutOff;
-    LJParams.shift = false;
+    LJParams.shift = true;
     LJPotential->setPotParameters(0, 0, LJParams);
   }
 
