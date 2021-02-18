@@ -297,7 +297,9 @@ $y$ direction.
   } //!
 %! codeblockend !//
 \end{lstlisting}
-Next, we write the function for the gravitational potential energy.
+(The \texttt{\_\_device\_\_} indicates that the calculation will take place on 
+your graphics processor unit). Next, we write the function for the gravitational 
+potential energy.
 \begin{lstlisting}
 %! codeblock: gravityEnergy
   __device__ real energy(real4 position, real mass){
@@ -630,26 +632,21 @@ creation of harmonic bonds.
 %! codeblock: angularForces
   {
     using angularPotentials
-      = AngularBondedForces<AngularBondedForces_ns::AngularBond>;
+      = AngularBondedForces<BondedType::Angular>;
     angularPotentials::Parameters angularParameters;
-    angularParameters.readFile = "data.angularForces";
+    angularParameters.file = "data.angularForces";
     auto angularForces
       = make_shared<angularPotentials>(particles, sys,
                                        angularParameters,
-                                       std::make_shared<AngularBondedForces_ns::AngularBond>(box));
+                                       std::make_shared<BondedType::Angular>(box));
     integrator->addInteractor(angularForces);
   } //!
 %! codeblockend !//
 \end{lstlisting}
-I should briefly comment on three annoying peculiarities in the code snippet
-above. One, the bond type has an irritatingly redundant long name:
-\begin{verbatim}
-AngularBondedForces_ns::AngularBond
-\end{verbatim}
-Two, the file name parameter in this case was set to ``\texttt{readFile}'', 
-instead of ``\texttt{file}'' as it was called for harmonic bonds. Three, for 
-obscure design reasons that we do not care about now, the interactor takes a 
-shared pointer to the bond type as an extra parameter.
+I should briefly draw your attention to the last parameter in the creation of 
+\texttt{angularForces}. For obscure design reasons that we do not care about 
+now, the interactor takes a shared pointer to the bond type (or, alternatively, 
+an instance) as an extra parameter.
 
 \begin{comment}
 The structure of the UAMMD module code for a flexible cable follows.
@@ -822,13 +819,13 @@ written above.
 %! codeblock: torsionalForces
   {
     using torsionalPotentials
-     = TorsionalBondedForces<TorsionalBondedForces_ns::TorsionalBond>;
+     = TorsionalBondedForces<BondedType::Torsional>;
     torsionalPotentials::Parameters torsionalParameters;
-    torsionalParameters.readFile = "data.torsionalForces";
+    torsionalParameters.file = "data.torsionalForces";
     auto torsionalForces
      = make_shared<torsionalPotentials>(particles, sys,
                                         torsionalParameters,
-                                        std::make_shared<TorsionalBondedForces_ns::TorsionalBond>(box));
+                                        std::make_shared<BondedType::Torsional>(box));
     integrator->addInteractor(torsionalForces);
   } //!
 %! codeblockend !//
@@ -1001,9 +998,8 @@ The energy function calculates $V(r)$, according to the aforementioned Morse
 potential.
 \begin{lstlisting}
 %! codeblock: MorseEnergy
-  inline __device__ real energy(int i, int j,
-                                 const real3 &rij,
-                                 const BondInfo &MorseParams) {
+  __device__ real energy(int i, int j, real3 rij,
+                                BondInfo MorseParams) {
     real r = sqrtf(dot(rij, rij));
     real oneminusexpar
       = real(1.0) - exp(-MorseParams.a*(r - MorseParams.r0));
@@ -1011,7 +1007,7 @@ potential.
   } //!
 %! codeblockend !//
 \end{lstlisting}
-Finally, we close our \texttt{Morse} data structure with the force, which equals 
+Finally, we close our \texttt{Morse} data structure with the force, which equals
 the negative gradient of the energy,
 \begin{equation*}
   \mathbf{F}(\mathbf{r})
@@ -1021,9 +1017,8 @@ the negative gradient of the energy,
 \end{equation*}
 \begin{lstlisting}
 %! codeblock: MorseForce
-  inline __device__ real3 force(int i, int j,
-                                const real3 &rij,
-                                const BondInfo &MorseParams) {
+  __device__ real3 force(int i, int j, real3 rij,
+                                BondInfo MorseParams) {
     real r = sqrtf(dot(rij, rij));
     real expar = exp(-MorseParams.a*(r - MorseParams.r0));
     return real(2.0)*MorseParams.De*MorseParams.a
