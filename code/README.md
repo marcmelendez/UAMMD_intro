@@ -39,3 +39,4 @@ The comment ``//!`` marks the ends of code snippets in the text.
 
 * `rubberBallE.cpp`: A version of the `rubberBall.cpp` from the introduction 
    which also outputs the mechanical energy of the ball.
+* `measurements.cu`:
