@@ -38,7 +38,7 @@ int main(int argc, char *argv[]){
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = 0.01;
-  VerletParams.initVelocities=true;
+  VerletParams.initVelocities = true;
   VerletParams.energy = 1.0;//!
 
   auto integrator
@@ -50,7 +50,7 @@ int main(int argc, char *argv[]){
     LJParams.epsilon = 1.0;
     LJParams.sigma = 1.0;
     LJParams.cutOff = 2.5*LJParams.sigma;
-    LJParams.shift = false;
+    LJParams.shift = true;
     LJPotential->setPotParameters(0, 0, LJParams);
   } //!
 

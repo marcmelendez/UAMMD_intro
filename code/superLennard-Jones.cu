@@ -106,7 +106,7 @@ int main(int argc, char *argv[]){
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = simParams.dt;
-  VerletParams.initVelocities=true;
+  VerletParams.initVelocities = true;
   VerletParams.energy = simParams.particleEnergy;
 
   auto integrator
@@ -118,7 +118,7 @@ int main(int argc, char *argv[]){
     LJParams.epsilon = simParams.epsilon;
     LJParams.sigma = simParams.sigma;
     LJParams.cutOff = simParams.cutOff;
-    LJParams.shift = false;
+    LJParams.shift = true;
     LJPotential->setPotParameters(0, 0, LJParams);
   }
 
