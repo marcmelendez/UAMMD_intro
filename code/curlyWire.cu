@@ -101,25 +101,25 @@ int main(int argc, char *argv[]){
 
   {
     using angularPotentials
-      = AngularBondedForces<AngularBondedForces_ns::AngularBond>;
+      = AngularBondedForces<BondedType::Angular>;
     angularPotentials::Parameters angularParameters;
-    angularParameters.readFile = "data.angularForces";
+    angularParameters.file = "data.angularForces";
     auto angularForces
       = make_shared<angularPotentials>(particles, sys,
                                        angularParameters,
-                                       std::make_shared<AngularBondedForces_ns::AngularBond>(box));
+                                       std::make_shared<BondedType::Angular>(box));
     integrator->addInteractor(angularForces);
   } //!
 
   {
     using torsionalPotentials
-     = TorsionalBondedForces<TorsionalBondedForces_ns::TorsionalBond>;
+     = TorsionalBondedForces<BondedType::Torsional>;
     torsionalPotentials::Parameters torsionalParameters;
-    torsionalParameters.readFile = "data.torsionalForces";
+    torsionalParameters.file = "data.torsionalForces";
     auto torsionalForces
      = make_shared<torsionalPotentials>(particles, sys,
                                         torsionalParameters,
-                                        std::make_shared<TorsionalBondedForces_ns::TorsionalBond>(box));
+                                        std::make_shared<BondedType::Torsional>(box));
     integrator->addInteractor(torsionalForces);
   } //!
 

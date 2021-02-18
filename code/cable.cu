@@ -107,13 +107,13 @@ int main(int argc, char *argv[]){
 
   {
     using angularPotentials
-      = AngularBondedForces<AngularBondedForces_ns::AngularBond>;
+      = AngularBondedForces<BondedType::Angular>;
     angularPotentials::Parameters angularParameters;
-    angularParameters.readFile = "data.angularForces";
+    angularParameters.file = "data.angularForces";
     auto angularForces
       = make_shared<angularPotentials>(particles, sys,
                                        angularParameters,
-                                       std::make_shared<AngularBondedForces_ns::AngularBond>(box));
+                                       std::make_shared<BondedType::Angular>(box));
     integrator->addInteractor(angularForces);
   } //!
 

@@ -34,7 +34,7 @@ int main(int argc, char *argv[]){
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = 0.01;
-  VerletParams.initVelocities=true;
+  VerletParams.initVelocities = true;
   VerletParams.energy = 1.0;//!
 
   auto integrator
