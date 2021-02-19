@@ -152,7 +152,8 @@ After that, it adds in the potential energies from interactions.
   } //!
 %! codeblockend !//
 \end{lstlisting}
-Finally, we add all the values in the energy vector and return the grand total.
+Finally, we accumulate all the values in the energy vector and return the grand 
+total.
 \begin{lstlisting}
 %! codeblock: reduceEnergyVector
   {
@@ -193,6 +194,87 @@ real3 getTotalMomentum(std::shared_ptr<ParticleData> particles){
 %! codeblockend !//
 \end{lstlisting}
 
+We have two new tools to add to our Lennard-Jones code from chapter one. I'll 
+include them above the \texttt{main} function. We'll include two novel 
+parameters into the \texttt{InputParamters} data structure introduced in section 
+\ref{Parameter_files}: the mass of our particles and the name of the file 
+recording measured data.
+\begin{lstlisting}
+  real mass;
+  std::string macroFile;
+\end{lstlisting}
+We also need the corresponding default values in the \texttt{readParameterFile} 
+function,
+\begin{lstlisting}
+     defaultParameters<<"mass 1.0"<<endl;
+     defaultParameters<<"measurementsFile LJmacro.dat"<<endl;
+\end{lstlisting}
+and commands to read in custom values.
+\begin{lstlisting}
+   parameterFile.getOption("mass",
+     InputFile::Required)>>params.mass;
+   parameterFile.getOption("measurementsFile",
+     InputFile::Required)>>params.macroFile;
+\end{lstlisting}
+Within \texttt{main}, we'll set the mass of all particles to the value read in 
+from \texttt{data.main}.
+\begin{lstlisting}
+   {
+     auto mass
+       = particles->getMass(access::location::cpu,
+                            access::mode::write);
+     std::fill(mass.begin(), mass.end(), simParams.mass);
+   }
+\end{lstlisting}
+After we open the configuration output file, we'll also open the measurements 
+file.
+\begin{lstlisting}
+   std::string macroFile = simParams.macroFile;
+   std::ofstream macro(macroFile);
+\end{lstlisting}
+And within the integration loop, after printing out the configurations, we may 
+write out the energy and momentum values with these lines:
+\begin{lstlisting}
+       macro<<step*simParams.dt<<" ";
+       macro<<getTotalEnergy(integrator, particles)<<" ";
+       macro<<getTotalMomentum(particles)<<" ";
+       macro<<endl;
+\end{lstlisting}
+
+Table \ref{energy_conservation} displays the result of running the code with two 
+different time steps, proving that a step of $dt = 10^{-3}$ in reduced units 
+($\sigma = 1$, $\epsilon = 1$ and $m = 1$) should suffice for most practical 
+purposes. The algorithm also achieves a reasonable conservation of the three 
+components of linear momentum.
+
+\begin{table}
+    \begin{center}
+			\begin{tabular}{| c | c | c |}
+      \hline
+			Time & \multicolumn{2}{| c |}{Total energy} \\
+			$t$  &  $dt = 10^{-2}$ &  $dt = 10^{-3}$ \\
+			\hline
+			0    &  100000         &  100000 \\
+			1    &  99988.2        &  99999.9 \\
+			2    &  99987.2        &  99999.9 \\
+			3    &  99988.6        &  99999.9 \\
+			4    &  99987.3        &  99999.9 \\
+			5    &  99986.6        &  99999.9 \\
+			6    &  99985.8        &  100000 \\
+			7    &  99985.4        &  100000 \\
+			8    &  99985.5        &  99999.9 \\
+			9    &  99985.1        &  100000 \\
+			\hline
+			\end{tabular}
+    \end{center}
+    \caption{\label{energy_conservation}Total energy of a $10^5$ Lennard-Jones 
+             particles with an initial energy per particle of $\epsilon$,
+             ($\sigma = 1$, $\epsilon = 1$ and $m = 1$) in a box of size $128^3$ 
+             with two different time steps, $dt = 10^{-2}$ and $dt = 10^{-3}$. 
+             The former gives rise to a drift that might become significant for 
+             longer simulations.}
+\end{table}
+
 \section{Temperature}
 
 The Verlet (NVE) algorithm should conserve energy and linear momentum, so we 
@@ -201,9 +283,10 @@ they remain constant, they do not give us much interesting information when the
 simulation runs smoothly. The values coincide approximately with those of the 
 initial state we set up.
 
-The temperature connects the microscopic world of molecular collisions with the 
-macroscopic world of flasks and thermometers. The equipartition theorem states 
-that the expected value of a particle at equilibrium equals
+By contrast, the temperature connects the microscopic world of molecular 
+collisions with the macroscopic world of flasks and thermometers. The 
+equipartition theorem states that the expected value of a particle at 
+equilibrium equals
 \begin{equation*}
   \frac{1}{2} m \left\langle v^2 \right\rangle = \frac{3}{2}k_B T,
 \end{equation*}
@@ -253,10 +336,23 @@ and return two thirds of the average kinetic energy per particle.
 }//!
 %! codeblockend !//
 \end{lstlisting}
-
-% Simulation results
-
-% Heat capacity
+Copying this function below \texttt{getTotalMomentum} and replacing the 
+\texttt{macro<<endl;} command in the previous section with
+\begin{lstlisting}
+       macro<<getThermalEnergy(particles)<<endl;
+\end{lstlisting}
+we have written a program that can measure the equilibrium temperature of our 
+system. We can now carry out our own virtual laboratory experiments. Prepare a 
+simulation with some known density and internal energy, and then measure its 
+temperature when it reaches equilibrium. Repeat the process changing the energy. 
+The increase in internal energy, $Q$, divided by the increase in temperature, 
+$\Delta T$, gives you the heat capacity $C$, because
+\begin{equation*}
+  C = \lim_{\Delta T \to 0} \frac{Q}{\Delta T}.
+\end{equation*}
+Using your simulation as a model for a substance made of neutral atoms 
+(typically argon) you can make predictions of its heat capacity and compare them 
+to experimental measurements.
 
 \begin{comment}
 \begin{lstlisting}
@@ -436,6 +532,7 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
+\section{Check points}
 
 \section{Thermostats}
 
@@ -445,13 +542,11 @@ Brownian Dynamics
 
 MSD
 
-\section{Structure}
+\section{Structure and pressure}
+
+Post-processing
 
 Histograms
-
-RDF
-
-\section{Pressure}
 
 RDF
 
@@ -459,13 +554,14 @@ Virial
 
 Barostats
 
-\section{Check points}
 
 \begin{comment}
 List of programs written in this chapter:
 %! codeblock: codelist
 * `rubberBallE.cpp`: A version of the `rubberBall.cpp` from the introduction 
    which also outputs the mechanical energy of the ball.
-* `measurements.cu`:
+* `measurements.cu`: An improvement of `superLennard-Jones.cu` that outputs the 
+   total energy and linear momentum, and the thermal energy (proportional to 
+   the absolute kinetic temperature).
 %! codeblockend
 \end{comment}

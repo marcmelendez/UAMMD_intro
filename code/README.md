@@ -39,4 +39,6 @@ The comment ``//!`` marks the ends of code snippets in the text.
 
 * `rubberBallE.cpp`: A version of the `rubberBall.cpp` from the introduction 
    which also outputs the mechanical energy of the ball.
-* `measurements.cu`:
+* `measurements.cu`: An improvement of `superLennard-Jones.cu` that outputs the 
+   total energy and linear momentum, and the thermal energy (proportional to 
+   the absolute kinetic temperature).
