@@ -1,7 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                                                                              %
 %            A Painless Introduction to Programming UAMMD Modules              %
-%                           Chapter 3: Measuring                               %                                                                              
+%                           Chapter 3: Measuring                               %
 %                                                                              %
 %                          Marc Meléndez Schofield                             %
 %                                                                              %
@@ -355,8 +355,9 @@ Using your simulation as a model for a substance made of neutral atoms
 to experimental measurements.
 
 \begin{comment}
+Code blocks that we will be using below.
 \begin{lstlisting}
-%! codefile: code/measurements.cu
+%! codeblock: Lennard-JonesHeader
 # include "uammd.cuh"
 # include "utils/InputFile.h"
 # include "utils/InitialConditions.cuh"
@@ -368,8 +369,11 @@ to experimental measurements.
 using namespace uammd;
 using std::make_shared;
 using std::endl;
+%! codeblockend
 
-struct InputParameters {
+Lennard-Jones default parameters so far.
+\begin{lstlisting}
+%! codeblock: Lennard-JonesInputParameters
   int numberOfParticles;
   real L;
   real dt;
@@ -382,33 +386,11 @@ struct InputParameters {
   std::string macroFile;
   int numberOfSteps;
   int printEverynSteps;
-};
+%! codeblockend
+\end{lstlisting}
 
-InputParameters readParameterFile(std::shared_ptr<System> sys)
-{
-  if(!std::ifstream("data.main").good()) {
-    sys->log<System::WARNING>("File data.main not found. Creating file with default values.");
-    std::ofstream defaultParameters("data.main");
-    if(not defaultParameters.is_open()) {
-      sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
-      exit(-1);
-    }
-    defaultParameters<<"numberOfParticles 100000"<<endl;
-    defaultParameters<<"boxSize 128"<<endl;
-    defaultParameters<<"timeStep 0.01"<<endl;
-    defaultParameters<<"epsilon 1.0"<<endl;
-    defaultParameters<<"sigma 1.0"<<endl;
-    defaultParameters<<"mass 1.0"<<endl;
-    defaultParameters<<"cutOff 2.5"<<endl;
-    defaultParameters<<"particleEnergy 1.0"<<endl;
-    defaultParameters<<"outputFile Lennard-Jones.dat"<<endl;
-    defaultParameters<<"measurementsFile LJmacro.dat"<<endl;
-    defaultParameters<<"numberOfSteps 10000"<<endl;
-    defaultParameters<<"printEverynSteps 1000"<<endl;
-  }
-  InputFile parameterFile("data.main", sys);
-  InputParameters params;
-
+\begin{lstlisting}
+%! codeblock: Lennard-JonesReadParameterFile
   parameterFile.getOption("numberOfParticles",
     InputFile::Required)>>params.numberOfParticles;
   parameterFile.getOption("boxSize",
@@ -433,6 +415,108 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     InputFile::Required)>>params.numberOfSteps;
   parameterFile.getOption("printEverynSteps",
     InputFile::Required)>>params.printEverynSteps;
+%! codeblockend
+\end{lstlisting}
+
+\begin{lstlisting}
+%! codeblock: Lennard-JonesDefaultParameterList
+    defaultParameters<<"numberOfParticles 100000"<<endl;
+    defaultParameters<<"boxSize 128"<<endl;
+    defaultParameters<<"timeStep 0.01"<<endl;
+    defaultParameters<<"epsilon 1.0"<<endl;
+    defaultParameters<<"sigma 1.0"<<endl;
+    defaultParameters<<"mass 1.0"<<endl;
+    defaultParameters<<"cutOff 2.5"<<endl;
+    defaultParameters<<"particleEnergy 1.0"<<endl;
+    defaultParameters<<"outputFile Lennard-Jones.dat"<<endl;
+    defaultParameters<<"measurementsFile LJmacro.dat"<<endl;
+    defaultParameters<<"numberOfSteps 10000"<<endl;
+    defaultParameters<<"printEverynSteps 1000"<<endl;
+%! codeblockend
+\end{lstlisting}
+
+\begin{lstlisting}
+%! codeblock: Lennard-JonesFillMass
+  {
+    auto mass
+      = particles->getMass(access::location::cpu,
+                           access::mode::write);
+    std::fill(mass.begin(), mass.end(), simParams.mass);
+  }
+%! codeblockend
+\end{lstlisting}
+
+\begin{lstlisting}
+%! codeblock: Lennard-JonesPotential
+  auto LJPotential = make_shared<Potential::LJ>(sys);
+  {
+    Potential::LJ::InputPairParameters LJParams;
+    LJParams.epsilon = simParams.epsilon;
+    LJParams.sigma = simParams.sigma;
+    LJParams.cutOff = simParams.cutOff;
+    LJParams.shift = true;
+    LJPotential->setPotParameters(0, 0, LJParams);
+  }
+%! codeblockend
+\end{lstlisting}
+
+\begin{lstlisting}
+%! codeblock: Lennard-JonesOutputFiles
+  std::string outputFile = simParams.outputFile;
+  std::ofstream out(outputFile);
+
+  std::string macroFile = simParams.macroFile;
+  std::ofstream macro(macroFile);
+%! codeblockend
+\end{lstlisting}
+
+\begin{lstlisting}
+%! codeblock: Lennard-JonesOutputData
+    if(printEverynSteps > 0
+       and step % printEverynSteps == 1) {
+
+      auto position
+        = particles->getPos(access::location::cpu,
+                            access::mode::read);
+      const int * index = particles->getIdOrderedIndices(access::location::cpu);
+
+      out<<endl;
+      for(int id = 0; id < numberOfParticles; ++id)
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl; //!
+
+      macro<<step*simParams.dt<<" ";
+      macro<<getTotalEnergy(integrator, particles)<<" ";
+      macro<<getTotalMomentum(particles)<<" ";
+      macro<<getThermalEnergy(particles)<<endl;
+    }
+%! codeblockend
+\end{lstlisting}
+
+Putting all the ingredients together, we get the following measurements.cu.
+\begin{lstlisting}
+%! codefile: code/measurements.cu
+
+%! codeinsert: Lennard-JonesHeader
+
+struct InputParameters {
+  %! codeinsert: Lennard-JonesInputParameters
+};
+
+InputParameters readParameterFile(std::shared_ptr<System> sys)
+{
+  if(!std::ifstream("data.main").good()) {
+    sys->log<System::WARNING>("File data.main not found. Creating file with default values.");
+    std::ofstream defaultParameters("data.main");
+    if(not defaultParameters.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
+      exit(-1);
+    }
+    %! codeinsert: Lennard-JonesDefaultParameterList
+  }
+  InputFile parameterFile("data.main", sys);
+  InputParameters params;
+
+  %! codeinsert: Lennard-JonesReadParameterFile
 
   return params;
 }
@@ -466,12 +550,8 @@ int main(int argc, char *argv[]){
 
     std::copy(initial.begin(), initial.end(), position.begin());
   }
-  {
-    auto mass
-      = particles->getMass(access::location::cpu,
-                           access::mode::write);
-    std::fill(mass.begin(), mass.end(), simParams.mass);
-  }
+
+  %! codeinsert: Lennard-JonesFillMass
 
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
@@ -481,23 +561,11 @@ int main(int argc, char *argv[]){
 
   %! codeinsert: Verlet src: chapters/first_simulation.tex
 
-  auto LJPotential = make_shared<Potential::LJ>(sys);
-  {
-    Potential::LJ::InputPairParameters LJParams;
-    LJParams.epsilon = simParams.epsilon;
-    LJParams.sigma = simParams.sigma;
-    LJParams.cutOff = simParams.cutOff;
-    LJParams.shift = true;
-    LJPotential->setPotParameters(0, 0, LJParams);
-  }
+  %! codeinsert: Lennard-JonesPotential
 
   %! codeinsert: Lennard-JonesInteraction src: chapters/first_simulation.tex
 
-  std::string outputFile = simParams.outputFile;
-  std::ofstream out(outputFile);
-
-  std::string macroFile = simParams.macroFile;
-  std::ofstream macro(macroFile);
+  %! codeinsert: Lennard-JonesOutputFiles
 
   int numberOfSteps = simParams.numberOfSteps;
   int printEverynSteps = simParams.printEverynSteps;
@@ -505,23 +573,7 @@ int main(int argc, char *argv[]){
   for(int step = 0; step < numberOfSteps; ++step) {
     integrator->forwardTime();
 
-    if(printEverynSteps > 0
-       and step % printEverynSteps == 1) {
-
-      auto position
-        = particles->getPos(access::location::cpu,
-                            access::mode::read);
-      const int * index = particles->getIdOrderedIndices(access::location::cpu);
-
-      out<<endl;
-      for(int id = 0; id < numberOfParticles; ++id)
-        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl; //!
-
-      macro<<step*simParams.dt<<" ";
-      macro<<getTotalEnergy(integrator, particles)<<" ";
-      macro<<getTotalMomentum(particles)<<" ";
-      macro<<getThermalEnergy(particles)<<endl;
-    }
+    %! codeinsert: Lennard-JonesOutputData
   }
 
   sys->finish();
@@ -532,7 +584,210 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
-\section{Check points}
+\section{Checkpointing}
+
+You have spent weeks working on your code and finally managed to get it to 
+perform correctly. You have set up your simulation and left it running all night 
+long. In the morning, you rush to check your results and find to your dismay 
+that the temperature had not yet stabilised when the program concluded. Sadly, 
+you need to run it all again increasing the number of steps. Or even worse, you 
+can imagine a power shortage hitting your GPU when it had been working on a 
+simulation for days. I hope this conveys the importance of implementing some 
+safety measures. They are well worth the effort.
+
+You only need to save the state of the system periodically. That way, you can 
+restart the run from any of these checkpoints instead of the beginning. In each 
+situation, you have to decide what counts as the state of the system, that is, 
+what information allows you to restore the simulation. In the case of our 
+Lennard-Jones calculations, we need the values in the parameter file, the 
+positions of all particles \textit{and their velocities}. But in the diatomic 
+molecules simulation, you would also need the list of bonds.
+
+To illustrate the idea, let's write checkpointing for the Lennard-Jones system.
+
+\begin{lstlisting}
+%! codeblock: 
+   int checkpointEverynSteps;
+   std::string inputFile; //!
+%! codeblockend !//
+\end{lstlisting}
+
+\begin{lstlisting}
+%! codeblock: 
+   params.checkpointEverynSteps = 0;
+   parameterFile.getOption("checkpointEverynSteps",
+     InputFile::Optional)>>params.checkpointEverynSteps;
+   parameterFile.getOption("inputFile",
+     InputFile::Optional)>>params.inputFile; //!
+%! codeblockend !//
+\end{lstlisting}
+
+\begin{lstlisting}
+%! codeblock: 
+  if(simParams.inputFile.empty()) {
+    sys->log<System::MESSAGE>("Creating new initial positions.");
+
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
+
+    auto initial =  initLattice(box.boxSize,
+                                numberOfParticles, sc);
+
+    std::copy(initial.begin(), initial.end(), position.begin());
+  } else {
+    sys->log<System::MESSAGE>("Reading initial positions and velocities from file.");
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
+    auto velocity
+      = particles->getVel(access::location::cpu,
+                          access::mode::write);
+
+    std::string inputFile = simParams.inputFile;
+    std::ifstream in(inputFile);
+
+    for(int i = 0; i < numberOfParticles; ++i) {
+      in>>position[i].x>>position[i].y>>position[i].z
+        >>velocity[i].x>>velocity[i].y>>velocity[i].z;
+      position[i].w = 0;
+    }
+  } //!
+%! codeblockend !//
+\end{lstlisting}
+
+\begin{lstlisting}
+%! codeblock: 
+   if(simParams.inputFile.empty()) {
+     sys->log<System::MESSAGE>("UAMMD will generate new velocities.");
+     VerletParams.initVelocities = true;
+   } else {
+     VerletParams.initVelocities = false;
+  } //!
+%! codeblockend !//
+\end{lstlisting}
+
+\begin{lstlisting}
+%! codeblock: 
+    int checkpointEverynSteps = simParams.checkpointEverynSteps;
+    if(checkpointEverynSteps > 0
+       and step % checkpointEverynSteps == 1) {
+      auto position
+        = particles->getPos(access::location::cpu,
+                            access::mode::read);
+      auto velocity
+        = particles->getVel(access::location::cpu,
+                            access::mode::read);
+
+
+      std::string checkpointFile
+        = "checkpoint."
+          + std::to_string(step/checkpointEverynSteps)
+          + ".dat";
+      std::ofstream checkpoint(checkpointFile);
+
+      for(int i = 0; i < numberOfParticles; ++i) {
+        checkpoint<<position[i].x<<" "<<position[i].y<<" "
+                  <<position[i].z<<" "<<velocity[i]<<endl;
+      }
+    }
+  } //!
+%! codeblockend !//
+\end{lstlisting}
+
+
+\begin{comment}
+\begin{lstlisting}
+%! codefile: code/checkpoints.cu
+
+%! codeinsert: Lennard-JonesHeader
+
+struct InputParameters {
+  %! codeinsert: Lennard-JonesInputParameters
+};
+
+InputParameters readParameterFile(std::shared_ptr<System> sys)
+{
+  if(!std::ifstream("data.main").good()) {
+    sys->log<System::WARNING>("File data.main not found. Creating file with default values.");
+    std::ofstream defaultParameters("data.main");
+    if(not defaultParameters.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
+      exit(-1);
+    }
+    %! codeinsert: Lennard-JonesDefaultParameterList
+  }
+  InputFile parameterFile("data.main", sys);
+  InputParameters params;
+
+  %! codeinsert: Lennard-JonesReadParameterFile
+
+  return params;
+}
+
+%! codeinsert: getTotalEnergy
+
+%! codeinsert: getTotalMomentum
+
+%! codeinsert: getThermalEnergy
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  %! codeinsert: loadParameters src: chapters/first_simulation.tex
+
+  int numberOfParticles = simParams.numberOfParticles;
+  auto particles
+    = make_shared<ParticleData>(numberOfParticles, sys);
+
+  real L = simParams.L;
+
+  %! codeinsert: LJsimulationBox src: chapters/first_simulation.tex
+  {
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
+
+    auto initial =  initLattice(box.boxSize,
+                                numberOfParticles, sc);
+
+    std::copy(initial.begin(), initial.end(), position.begin());
+  }
+
+  %! codeinsert: Lennard-JonesFillMass
+
+  using Verlet = VerletNVE;
+  Verlet::Parameters VerletParams;
+  VerletParams.dt = simParams.dt;
+  VerletParams.initVelocities = true;
+  VerletParams.energy = simParams.particleEnergy;
+
+  %! codeinsert: Verlet src: chapters/first_simulation.tex
+
+  %! codeinsert: Lennard-JonesPotential
+
+  %! codeinsert: Lennard-JonesInteraction src: chapters/first_simulation.tex
+
+  %! codeinsert: Lennard-JonesOutputFiles
+
+  int numberOfSteps = simParams.numberOfSteps;
+  int printEverynSteps = simParams.printEverynSteps;
+
+  for(int step = 0; step < numberOfSteps; ++step) {
+    integrator->forwardTime();
+
+    %! codeinsert: Lennard-JonesOutputData
+  }
+
+  sys->finish();
+
+  return 0;
+}
+%! codeend
+\end{lstlisting}
+\end{comment}
+
 
 \section{Thermostats}
 
@@ -563,5 +818,11 @@ List of programs written in this chapter:
 * `measurements.cu`: An improvement of `superLennard-Jones.cu` that outputs the 
    total energy and linear momentum, and the thermal energy (proportional to 
    the absolute kinetic temperature).
+* `checkpoints.cu`: An extension of `measurements.cu` with the ability restore 
+   simulations from saved checkpoints.
 %! codeblockend
+* `Langevin.cu`: Lennard-Jones molecular dynamics simulation with a Langevin 
+   thermostat.
+* `Brownian_dynamics.cu:`: Brownian dynamics simulation with Lennard-Jones 
+   particles.
 \end{comment}
