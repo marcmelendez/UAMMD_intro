@@ -601,29 +601,35 @@ situation, you have to decide what counts as the state of the system, that is,
 what information allows you to restore the simulation. In the case of our 
 Lennard-Jones calculations, we need the values in the parameter file, the 
 positions of all particles \textit{and their velocities}. But in the diatomic 
-molecules simulation, you would also need the list of bonds.
+molecules simulation, you would also need the current list of bonds.
 
-To illustrate the idea, let's write checkpointing for the Lennard-Jones system.
-
+To illustrate the idea, let's include checkpointing in the Lennard-Jones system.
+Among our parameters, we will have a number indicating when to back up the 
+state and the name of a file from which to read it back into the program.
 \begin{lstlisting}
-%! codeblock: 
-   int checkpointEverynSteps;
-   std::string inputFile; //!
+%! codeblock: checkpointParameters
+  int checkpointEverynSteps;
+  std::string inputFile; //!
 %! codeblockend !//
 \end{lstlisting}
-
+We can read the values in from the parameter file, but we will mark them as 
+optional.
 \begin{lstlisting}
-%! codeblock: 
-   params.checkpointEverynSteps = 0;
-   parameterFile.getOption("checkpointEverynSteps",
-     InputFile::Optional)>>params.checkpointEverynSteps;
-   parameterFile.getOption("inputFile",
-     InputFile::Optional)>>params.inputFile; //!
+%! codeblock: checkpointReadParameterFile
+  params.checkpointEverynSteps = 0;
+  parameterFile.getOption("checkpointEverynSteps",
+    InputFile::Optional)>>params.checkpointEverynSteps;
+  parameterFile.getOption("inputFile",
+    InputFile::Optional)>>params.inputFile; //!
 %! codeblockend !//
 \end{lstlisting}
+As you can see, we set the default value of \texttt{checkpointEverynSteps} to 
+zero, which means no checkpointing.
 
+When the parameters do not include an \texttt{inputFile}, the program should 
+generate the initial positions and velocities.
 \begin{lstlisting}
-%! codeblock: 
+%! codeblock: checkpointInitialPositions
   if(simParams.inputFile.empty()) {
     sys->log<System::MESSAGE>("Creating new initial positions.");
 
@@ -656,22 +662,29 @@ To illustrate the idea, let's write checkpointing for the Lennard-Jones system.
 %! codeblockend !//
 \end{lstlisting}
 
+Regarding the velocities, we will set \texttt{VerletParams.initVelocities} to 
+\texttt{true} only when we did not provide an \texttt{inputFile}, otherwise we 
+have already read the velocities in from the file and we don't want to 
+overwrite them.
 \begin{lstlisting}
-%! codeblock: 
-   if(simParams.inputFile.empty()) {
-     sys->log<System::MESSAGE>("UAMMD will generate new velocities.");
-     VerletParams.initVelocities = true;
-   } else {
-     VerletParams.initVelocities = false;
+%! codeblock: checkpointInitVelocities
+  if(simParams.inputFile.empty()) {
+    sys->log<System::MESSAGE>("UAMMD will generate new velocities.");
+    VerletParams.initVelocities = true;
+  } else {
+    VerletParams.initVelocities = false;
   } //!
 %! codeblockend !//
 \end{lstlisting}
 
+Finally, after we output our data to files, we can check whether it's time to 
+save the state of the system and if so copy it to a file named 
+\texttt{checkpoint.}$n$\texttt{.dat} (with $n$ standing for the checkpoint 
+number).
 \begin{lstlisting}
-%! codeblock: 
-    int checkpointEverynSteps = simParams.checkpointEverynSteps;
-    if(checkpointEverynSteps > 0
-       and step % checkpointEverynSteps == 1) {
+%! codeblock: saveState
+    if(simParams.checkpointEverynSteps > 0
+       and step % simParams.checkpointEverynSteps == 1) {
       auto position
         = particles->getPos(access::location::cpu,
                             access::mode::read);
@@ -682,7 +695,7 @@ To illustrate the idea, let's write checkpointing for the Lennard-Jones system.
 
       std::string checkpointFile
         = "checkpoint."
-          + std::to_string(step/checkpointEverynSteps)
+          + std::to_string(step/simParams.checkpointEverynSteps)
           + ".dat";
       std::ofstream checkpoint(checkpointFile);
 
@@ -690,20 +703,23 @@ To illustrate the idea, let's write checkpointing for the Lennard-Jones system.
         checkpoint<<position[i].x<<" "<<position[i].y<<" "
                   <<position[i].z<<" "<<velocity[i]<<endl;
       }
-    }
-  } //!
+    } //!
 %! codeblockend !//
 \end{lstlisting}
 
+A bunch of lines such as those presented in this section might save you from 
+tears many times in your career as a computational scientist.
+
+Also, back up your data.
 
 \begin{comment}
 \begin{lstlisting}
 %! codefile: code/checkpoints.cu
-
 %! codeinsert: Lennard-JonesHeader
 
 struct InputParameters {
   %! codeinsert: Lennard-JonesInputParameters
+  %! codeinsert: checkpointParameters
 };
 
 InputParameters readParameterFile(std::shared_ptr<System> sys)
@@ -721,6 +737,7 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
   InputParameters params;
 
   %! codeinsert: Lennard-JonesReadParameterFile
+  %! codeinsert: checkpointReadParameterFile
 
   return params;
 }
@@ -744,23 +761,15 @@ int main(int argc, char *argv[]){
   real L = simParams.L;
 
   %! codeinsert: LJsimulationBox src: chapters/first_simulation.tex
-  {
-    auto position
-      = particles->getPos(access::location::cpu,
-                          access::mode::write);
 
-    auto initial =  initLattice(box.boxSize,
-                                numberOfParticles, sc);
-
-    std::copy(initial.begin(), initial.end(), position.begin());
-  }
+  %! codeinsert: checkpointInitialPositions
 
   %! codeinsert: Lennard-JonesFillMass
 
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
   VerletParams.dt = simParams.dt;
-  VerletParams.initVelocities = true;
+  %! codeinsert: checkpointInitVelocities
   VerletParams.energy = simParams.particleEnergy;
 
   %! codeinsert: Verlet src: chapters/first_simulation.tex
@@ -778,6 +787,8 @@ int main(int argc, char *argv[]){
     integrator->forwardTime();
 
     %! codeinsert: Lennard-JonesOutputData
+
+    %! codeinsert: saveState
   }
 
   sys->finish();
@@ -813,16 +824,16 @@ Barostats
 \begin{comment}
 List of programs written in this chapter:
 %! codeblock: codelist
-* `rubberBallE.cpp`: A version of the `rubberBall.cpp` from the introduction 
+* `rubberBallE.cpp`: A version of the `rubberBall.cpp` from the introduction
    which also outputs the mechanical energy of the ball.
-* `measurements.cu`: An improvement of `superLennard-Jones.cu` that outputs the 
-   total energy and linear momentum, and the thermal energy (proportional to 
+* `measurements.cu`: An improvement of `superLennard-Jones.cu` that outputs the
+   total energy and linear momentum, and the thermal energy (proportional to
    the absolute kinetic temperature).
-* `checkpoints.cu`: An extension of `measurements.cu` with the ability restore 
+* `checkpoints.cu`: An extension of `measurements.cu` with the ability restore
    simulations from saved checkpoints.
 %! codeblockend
-* `Langevin.cu`: Lennard-Jones molecular dynamics simulation with a Langevin 
+* `Langevin.cu`: Lennard-Jones molecular dynamics simulation with a Langevin
    thermostat.
-* `Brownian_dynamics.cu:`: Brownian dynamics simulation with Lennard-Jones 
+* `Brownian_dynamics.cu:`: Brownian dynamics simulation with Lennard-Jones
    particles.
 \end{comment}
