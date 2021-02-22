@@ -1,5 +1,3 @@
-![A Painless Introduction to Programming UAMMD Modules](figures/uammd_intro_cover.eps)
-
 # A Painless Introduction to Programming UAMMD Modules
 
 UAMMD stands for **Universally Adaptable Multiscale Molecular Dynamics**. You
