@@ -49,3 +49,5 @@ The comment ``//!`` marks the ends of code snippets in the text.
    3.1&ndash;3.2).
 * `checkpoints.cu`: An extension of `measurements.cu` with the ability restore
    simulations from saved checkpoints (*section*: 3.3).
+* `Langevin.cu`: Lennard-Jones molecular dynamics simulation with a Langevin
+   thermostat (*section*: 3.4).

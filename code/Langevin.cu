@@ -24,7 +24,7 @@ struct InputParameters {
   int numberOfSteps;
   int printEverynSteps;
   real thermalEnergy;
-  real viscosity; //!
+  real friction; //!
   int checkpointEverynSteps;
   std::string inputFile; //!
 };
@@ -51,7 +51,7 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     defaultParameters<<"numberOfSteps 10000"<<endl;
     defaultParameters<<"printEverynSteps 1000"<<endl;
     defaultParameters<<"thermalEnergy 1.0"<<endl;
-    defaultParameters<<"viscosity 1.0"<<endl; //!
+    defaultParameters<<"friction 1.0"<<endl; //!
   }
   InputFile parameterFile("data.main", sys);
   InputParameters params;
@@ -82,8 +82,8 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     InputFile::Required)>>params.printEverynSteps;
   parameterFile.getOption("thermalEnergy",
     InputFile::Required)>>params.thermalEnergy;
-  parameterFile.getOption("viscosity",
-    InputFile::Required)>>params.viscosity; //!
+  parameterFile.getOption("friction",
+    InputFile::Required)>>params.friction; //!
   params.checkpointEverynSteps = 0;
   parameterFile.getOption("checkpointEverynSteps",
     InputFile::Optional)>>params.checkpointEverynSteps;
@@ -221,16 +221,14 @@ int main(int argc, char *argv[]){
   Verlet::Parameters VerletParams;
   VerletParams.dt = simParams.dt;
   VerletParams.temperature = simParams.thermalEnergy;
-  VerletParams.viscosity = simParams.viscosity;
-  /* initVelocities not implemented yet
+  VerletParams.friction = simParams.friction; //!
+
   if(simParams.inputFile.empty()) {
     sys->log<System::MESSAGE>("UAMMD will generate new velocities.");
     VerletParams.initVelocities = true;
-    VerletParams.energy = simParams.particleEnergy;
-  } else { // Velocities were already read from input file
+  } else {
     VerletParams.initVelocities = false;
-  } //!
-  */
+  }
 
   auto integrator
     = make_shared<Verlet>(particles, sys, VerletParams);//!

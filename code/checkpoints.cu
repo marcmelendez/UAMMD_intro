@@ -215,10 +215,10 @@ int main(int argc, char *argv[]){
   if(simParams.inputFile.empty()) {
     sys->log<System::MESSAGE>("UAMMD will generate new velocities.");
     VerletParams.initVelocities = true;
+    VerletParams.energy = simParams.particleEnergy;
   } else {
     VerletParams.initVelocities = false;
   } //!
-  VerletParams.energy = simParams.particleEnergy;
 
   auto integrator
     = make_shared<Verlet>(particles, sys, VerletParams);//!

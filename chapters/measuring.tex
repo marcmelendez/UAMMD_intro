@@ -803,48 +803,104 @@ int main(int argc, char *argv[]){
 
 \section{The Langevin thermostat}
 
+Returning to the subject of measuring, your simulation protocols might annoy 
+experimental scientists. You see, setting the energy and measuring the 
+temperature feels upside down to them. In a laboratory, you measure the 
+properties of a system with a known temperature. Granted, you might need to 
+stick a thermometer into your sample to determine the temperature, but unless 
+you have set up your system within an insulated environment, it is temperature 
+and not energy that typically remains constant. In fact, researchers often 
+control the temperature of their experiments with a thermostat.
+
+It will probably please you to learn that computational thermostats exist as 
+well. They involve changing the algorithm with which you calcuate the time 
+evolution. I'll show you how to run Verlet-like thermostated dynamics below. Let 
+me explain the idea first.
+
+As your particles move around and bump into each other, they also interact with 
+an environment not represented explicitly. Picture it as a swarm of tiny point 
+particles flying around. Its effect amounts to a global friction that slows 
+particles down and random kicks that alter their velocity.
+
+To build our constant-temperature version of the Lennard-Jones simulations, we 
+change the integrator from \texttt{VerletNVE} to \texttt{VerletNVT}.
 \begin{lstlisting}
 %! codeblock: includeVerletNVT
 # include "Integrator/VerletNVT.cuh" //!
 %! codeblockend !//
 \end{lstlisting}
-
+We will have to specify the values of two new parameters:
 \begin{lstlisting}
 %! codeblock: LangevinParameters
   real thermalEnergy;
-  real viscosity; //!
+  real friction; //!
 %! codeblockend !//
 \end{lstlisting}
-
+The first determines the environment or thermostat temperature. The second, 
+the rate at which the system tends towards this temperature. We'll give the 
+parameters default values equal to one,
 \begin{lstlisting}
 %! codeblock: LangevinDefaultParameterList
     defaultParameters<<"thermalEnergy 1.0"<<endl;
-    defaultParameters<<"viscosity 1.0"<<endl; //!
+    defaultParameters<<"friction 1.0"<<endl; //!
 %! codeblockend !//
 \end{lstlisting}
-
+and read them in from the \texttt{data.main} file.
 \begin{lstlisting}
 %! codeblock: LangevinReadParameterFile
   parameterFile.getOption("thermalEnergy",
     InputFile::Required)>>params.thermalEnergy;
-  parameterFile.getOption("viscosity",
-    InputFile::Required)>>params.viscosity; //!
+  parameterFile.getOption("friction",
+    InputFile::Required)>>params.friction; //!
 %! codeblockend !//
 \end{lstlisting}
 
-
+All you have to do now is replace the creation of the Verlet NVE integrator with 
+this new integrator. Remember to set its \texttt{temperature} and 
+\texttt{friction} parameters. Here, \texttt{temperature} actually means thermal 
+energy (that is, $k_BT$).
 \begin{lstlisting}
 %! codeblock: VerletNVTParameters
   using Verlet = VerletNVT::GronbechJensen;
   Verlet::Parameters VerletParams;
   VerletParams.dt = simParams.dt;
   VerletParams.temperature = simParams.thermalEnergy;
-  VerletParams.viscosity = simParams.viscosity;
-  /* initVelocities not implemented yet
-  %! codeinsert: checkpointInitVelocities
-  */
+  VerletParams.friction = simParams.friction; //!
 %! codeblockend !//
 \end{lstlisting}
+This integrator uses the thermal energy to set the initial velocities of the 
+particles, so we can loose the line referring to \texttt{VerletParams.energy} 
+from previous versions of our code.
+
+The thermostat assumes that at equilibrium the system should lie stationary with 
+respect to the simulation box, so it will tend to slow down the centre of mass 
+if it begins with a drift.
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[width = \textwidth]{figures/Langevin.eps}
+  \end{center}
+  \caption{\label{Langevin}Average energy per particle (\textit{left}) and 
+           thermal energy (\textit{right}) for a system of $10^5$ particles
+           with Lennard-Jones interactions in a $128^3\ \sigma$ box with
+           periodic boundary conditions. The grey solid line corresponds to an 
+           NVE simulation, while the black curves plot the evolution of a 
+           thermostatted system with different values of the friction parameter 
+           $\gamma$. The latter simulations begin from the NVE state at
+           $t = 10$.}
+\end{figure}
+
+The solid grey lines in Figure \ref{Langevin} follow the evolution of the mean 
+energy per particle and the thermal energy for an NVE simulation (constant 
+number of particles, volume and energy) of particles with Lennard-Jones 
+interactions. At the time marked by the vertical dotted line, I saved the state 
+of the system and used it to set up several thermostatted simulations with a 
+target thermal energy marked by the horizontal dashed grey line. As you can see, 
+the NVE algorithm keeps the mean energy per particle constant, but the NVT 
+alternative introduced here allows it to change. Furthermore, you'll notice that 
+smaller values of the friction constant $\gamma$ lead to longer relaxation 
+times.
+
 
 \begin{comment}
 \begin{lstlisting}
@@ -915,6 +971,13 @@ int main(int argc, char *argv[]){
 
   %! codeinsert: VerletNVTParameters
 
+  if(simParams.inputFile.empty()) {
+    sys->log<System::MESSAGE>("UAMMD will generate new velocities.");
+    VerletParams.initVelocities = true;
+  } else {
+    VerletParams.initVelocities = false;
+  }
+
   %! codeinsert: Verlet src: chapters/first_simulation.tex
 
   %! codeinsert: Lennard-JonesPotential
@@ -944,7 +1007,117 @@ int main(int argc, char *argv[]){
 
 \section{Brownian Dynamics}
 
+Overdamped limit
+
+\begin{lstlisting}
+%! codeblock: includeBrownianDynamics
+# include "Integrator/BrownianDynamics.cu" //!
+%! codeblockend !//
+\end{lstlisting}
+
+No need for checkpoints
+
+
 MSD
+
+\begin{comment}
+\begin{lstlisting}
+%! codefile: code/BrownianDynamics.cu
+# include "uammd.cuh"
+# include "utils/InputFile.h"
+# include "utils/InitialConditions.cuh"
+# include "Interactor/Potential/Potential.cuh"
+# include "Interactor/NeighbourList/CellList.cuh"
+# include "Interactor/PairForces.cuh"
+%! codeinsert: includeBrownianDynamics
+
+using namespace uammd;
+using std::make_shared;
+using std::endl;
+
+struct InputParameters {
+  %! codeinsert: Lennard-JonesInputParameters
+  %! codeinsert: LangevinParameters
+};
+
+InputParameters readParameterFile(std::shared_ptr<System> sys)
+{
+  if(!std::ifstream("data.main").good()) {
+    sys->log<System::WARNING>("File data.main not found. Creating file with default values.");
+    std::ofstream defaultParameters("data.main");
+    if(not defaultParameters.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
+      exit(-1);
+    }
+    %! codeinsert: Lennard-JonesDefaultParameterList
+    %! codeinsert: LangevinDefaultParameterList
+  }
+  InputFile parameterFile("data.main", sys);
+  InputParameters params;
+
+  %! codeinsert: Lennard-JonesReadParameterFile
+  %! codeinsert: LangevinReadParameterFile
+  %! codeinsert: checkpointReadParameterFile
+
+  return params;
+}
+
+%! codeinsert: getTotalEnergy
+
+%! codeinsert: getTotalMomentum
+
+%! codeinsert: getThermalEnergy
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  %! codeinsert: loadParameters src: chapters/first_simulation.tex
+
+  int numberOfParticles = simParams.numberOfParticles;
+  auto particles
+    = make_shared<ParticleData>(numberOfParticles, sys);
+
+  real L = simParams.L;
+
+  %! codeinsert: LJsimulationBox src: chapters/first_simulation.tex
+
+  %! codeinsert: checkpointInitialPositions
+
+  %! codeinsert: Lennard-JonesFillMass
+
+  %! codeinsert: VerletNVTParameters
+  /* initVelocities not implemented yet
+  %! codeinsert: checkpointInitVelocities
+  */
+
+  %! codeinsert: Verlet src: chapters/first_simulation.tex
+
+  %! codeinsert: Lennard-JonesPotential
+
+  %! codeinsert: Lennard-JonesInteraction src: chapters/first_simulation.tex
+
+  %! codeinsert: Lennard-JonesOutputFiles
+
+  int numberOfSteps = simParams.numberOfSteps;
+  int printEverynSteps = simParams.printEverynSteps;
+
+  for(int step = 0; step < numberOfSteps; ++step) {
+    integrator->forwardTime();
+
+    %! codeinsert: Lennard-JonesOutputData
+
+    %! codeinsert: saveState
+  }
+
+  sys->finish();
+
+  return 0;
+}
+%! codeend
+\end{lstlisting}
+\end{comment}
+
 
 \section{Structure and pressure}
 
@@ -955,6 +1128,8 @@ Histograms
 RDF
 
 Virial
+
+\section{Custom integrators}
 
 Barostats
 
@@ -974,5 +1149,5 @@ List of programs written in this chapter:
    thermostat (*section*: 3.4).
 %! codeblockend
 * `Brownian_dynamics.cu:`: Brownian dynamics simulation with Lennard-Jones
-   particles.
+   interactions (*section*: 3.5).
 \end{comment}
