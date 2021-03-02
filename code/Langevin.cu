@@ -14,17 +14,16 @@ struct InputParameters {
   int numberOfParticles;
   real L;
   real dt;
-  real epsilon;
-  real sigma;
-  real mass;
-  real cutOff;
-  real particleEnergy;
   std::string outputFile;
   std::string macroFile;
   int numberOfSteps;
   int printEverynSteps;
+  real epsilon;
+  real sigma;
+  real cutOff;
   real thermalEnergy;
   real friction; //!
+  real mass;
   int checkpointEverynSteps;
   std::string inputFile; //!
 };
@@ -41,17 +40,16 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     defaultParameters<<"numberOfParticles 100000"<<endl;
     defaultParameters<<"boxSize 128"<<endl;
     defaultParameters<<"timeStep 0.01"<<endl;
-    defaultParameters<<"epsilon 1.0"<<endl;
-    defaultParameters<<"sigma 1.0"<<endl;
-    defaultParameters<<"mass 1.0"<<endl;
-    defaultParameters<<"cutOff 2.5"<<endl;
-    defaultParameters<<"particleEnergy 1.0"<<endl;
     defaultParameters<<"outputFile Lennard-Jones.dat"<<endl;
     defaultParameters<<"measurementsFile LJmacro.dat"<<endl;
     defaultParameters<<"numberOfSteps 10000"<<endl;
     defaultParameters<<"printEverynSteps 1000"<<endl;
+    defaultParameters<<"epsilon 1.0"<<endl;
+    defaultParameters<<"sigma 1.0"<<endl;
+    defaultParameters<<"cutOff 2.5"<<endl;
     defaultParameters<<"thermalEnergy 1.0"<<endl;
     defaultParameters<<"friction 1.0"<<endl; //!
+    defaultParameters<<"mass 1.0"<<endl;
   }
   InputFile parameterFile("data.main", sys);
   InputParameters params;
@@ -62,16 +60,6 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     InputFile::Required)>>params.L;
   parameterFile.getOption("timeStep",
     InputFile::Required)>>params.dt;
-  parameterFile.getOption("epsilon",
-    InputFile::Required)>>params.epsilon;
-  parameterFile.getOption("sigma",
-    InputFile::Required)>>params.sigma;
-  parameterFile.getOption("mass",
-    InputFile::Required)>>params.mass;
-  parameterFile.getOption("cutOff",
-    InputFile::Required)>>params.cutOff;
-  parameterFile.getOption("particleEnergy",
-    InputFile::Required)>>params.particleEnergy;
   parameterFile.getOption("outputFile",
     InputFile::Required)>>params.outputFile;
   parameterFile.getOption("measurementsFile",
@@ -80,6 +68,12 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     InputFile::Required)>>params.numberOfSteps;
   parameterFile.getOption("printEverynSteps",
     InputFile::Required)>>params.printEverynSteps;
+  parameterFile.getOption("epsilon",
+    InputFile::Required)>>params.epsilon;
+  parameterFile.getOption("sigma",
+    InputFile::Required)>>params.sigma;
+  parameterFile.getOption("cutOff",
+    InputFile::Required)>>params.cutOff;
   parameterFile.getOption("thermalEnergy",
     InputFile::Required)>>params.thermalEnergy;
   parameterFile.getOption("friction",
@@ -89,6 +83,8 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     InputFile::Optional)>>params.checkpointEverynSteps;
   parameterFile.getOption("inputFile",
     InputFile::Optional)>>params.inputFile; //!
+  parameterFile.getOption("mass",
+    InputFile::Required)>>params.mass;
 
   return params;
 }

@@ -206,15 +206,15 @@ recording measured data.
 We also need the corresponding default values in the \texttt{readParameterFile} 
 function,
 \begin{lstlisting}
-     defaultParameters<<"mass 1.0"<<endl;
-     defaultParameters<<"measurementsFile LJmacro.dat"<<endl;
+    defaultParameters<<"mass 1.0"<<endl;
+    defaultParameters<<"measurementsFile LJmacro.dat"<<endl;
 \end{lstlisting}
 and commands to read in custom values.
 \begin{lstlisting}
-   parameterFile.getOption("mass",
-     InputFile::Required)>>params.mass;
-   parameterFile.getOption("measurementsFile",
-     InputFile::Required)>>params.macroFile;
+  parameterFile.getOption("mass",
+    InputFile::Required)>>params.mass;
+  parameterFile.getOption("measurementsFile",
+    InputFile::Required)>>params.macroFile;
 \end{lstlisting}
 Within \texttt{main}, we'll set the mass of all particles to the value read in 
 from \texttt{data.main}.
@@ -356,32 +356,34 @@ to experimental measurements.
 
 \begin{comment}
 Code blocks that we will be using below.
+
+Header:
 \begin{lstlisting}
-%! codeblock: Lennard-JonesHeader
+%! codeblock: includeGenericMD
 # include "uammd.cuh"
 # include "utils/InputFile.h"
 # include "utils/InitialConditions.cuh"
+%! codeblockend
+
+%! codeblock: includeLennard-Jones
 # include "Interactor/Potential/Potential.cuh"
 # include "Interactor/NeighbourList/CellList.cuh"
 # include "Interactor/PairForces.cuh"
-# include "Integrator/VerletNVE.cuh"
+%! codeblockend
 
+%! codeblock: namespaceUAMMD
 using namespace uammd;
 using std::make_shared;
 using std::endl;
 %! codeblockend
+\end{lstlisting}
 
-Lennard-Jones default parameters so far.
+Standard molecular dynamics parameters:
 \begin{lstlisting}
-%! codeblock: Lennard-JonesInputParameters
+%! codeblock: genericMDInputParameters
   int numberOfParticles;
   real L;
   real dt;
-  real epsilon;
-  real sigma;
-  real mass;
-  real cutOff;
-  real particleEnergy;
   std::string outputFile;
   std::string macroFile;
   int numberOfSteps;
@@ -389,24 +391,35 @@ Lennard-Jones default parameters so far.
 %! codeblockend
 \end{lstlisting}
 
+Lennard-Jones-specific parameters:
 \begin{lstlisting}
-%! codeblock: Lennard-JonesReadParameterFile
+%! codeblock: Lennard-JonesInputParameters
+  real epsilon;
+  real sigma;
+  real cutOff;
+%! codeblockend
+\end{lstlisting}
+
+NVE molecular dynamics additional parameters:
+\begin{lstlisting}
+%! codeblock: NVEInputParameters
+  %! codeinsert: genericMDInputParameters
+  %! codeinsert: Lennard-JonesInputParameters
+  real mass;
+  real particleEnergy;
+%! codeblockend
+\end{lstlisting}
+
+Reading parameters from input file.
+
+\begin{lstlisting}
+%! codeblock: genericMDReadParameterFile
   parameterFile.getOption("numberOfParticles",
     InputFile::Required)>>params.numberOfParticles;
   parameterFile.getOption("boxSize",
     InputFile::Required)>>params.L;
   parameterFile.getOption("timeStep",
     InputFile::Required)>>params.dt;
-  parameterFile.getOption("epsilon",
-    InputFile::Required)>>params.epsilon;
-  parameterFile.getOption("sigma",
-    InputFile::Required)>>params.sigma;
-  parameterFile.getOption("mass",
-    InputFile::Required)>>params.mass;
-  parameterFile.getOption("cutOff",
-    InputFile::Required)>>params.cutOff;
-  parameterFile.getOption("particleEnergy",
-    InputFile::Required)>>params.particleEnergy;
   parameterFile.getOption("outputFile",
     InputFile::Required)>>params.outputFile;
   parameterFile.getOption("measurementsFile",
@@ -416,22 +429,49 @@ Lennard-Jones default parameters so far.
   parameterFile.getOption("printEverynSteps",
     InputFile::Required)>>params.printEverynSteps;
 %! codeblockend
+
+%! codeblock: Lennard-JonesReadParameterFile
+  parameterFile.getOption("epsilon",
+    InputFile::Required)>>params.epsilon;
+  parameterFile.getOption("sigma",
+    InputFile::Required)>>params.sigma;
+  parameterFile.getOption("cutOff",
+    InputFile::Required)>>params.cutOff;
+%! codeblockend
+
+%! codeblock: NVEReadParameterFile
+  %! codeinsert: genericMDReadParameterFile
+  %! codeinsert: Lennard-JonesReadParameterFile
+  parameterFile.getOption("mass",
+    InputFile::Required)>>params.mass;
+  parameterFile.getOption("particleEnergy",
+    InputFile::Required)>>params.particleEnergy;
+%! codeblockend
 \end{lstlisting}
 
+Default parameters to write if none were provided:
 \begin{lstlisting}
-%! codeblock: Lennard-JonesDefaultParameterList
+%! codeblock: genericMDDefaultParameterList
     defaultParameters<<"numberOfParticles 100000"<<endl;
     defaultParameters<<"boxSize 128"<<endl;
     defaultParameters<<"timeStep 0.01"<<endl;
-    defaultParameters<<"epsilon 1.0"<<endl;
-    defaultParameters<<"sigma 1.0"<<endl;
-    defaultParameters<<"mass 1.0"<<endl;
-    defaultParameters<<"cutOff 2.5"<<endl;
-    defaultParameters<<"particleEnergy 1.0"<<endl;
     defaultParameters<<"outputFile Lennard-Jones.dat"<<endl;
     defaultParameters<<"measurementsFile LJmacro.dat"<<endl;
     defaultParameters<<"numberOfSteps 10000"<<endl;
     defaultParameters<<"printEverynSteps 1000"<<endl;
+%! codeblockend
+
+%! codeblock: Lennard-JonesDefaultParameterList
+    defaultParameters<<"epsilon 1.0"<<endl;
+    defaultParameters<<"sigma 1.0"<<endl;
+    defaultParameters<<"cutOff 2.5"<<endl;
+%! codeblockend
+
+%! codeblock: NVEDefaultParameterList
+    %! codeinsert: genericMDDefaultParameterList
+    %! codeinsert: Lennard-JonesDefaultParameterList
+    defaultParameters<<"mass 1.0"<<endl;
+    defaultParameters<<"particleEnergy 1.0"<<endl;
 %! codeblockend
 \end{lstlisting}
 
@@ -495,11 +535,14 @@ Lennard-Jones default parameters so far.
 Putting all the ingredients together, we get the following measurements.cu.
 \begin{lstlisting}
 %! codefile: code/measurements.cu
+%! codeinsert: includeGenericMD
+%! codeinsert: includeLennard-Jones
+# include "Integrator/VerletNVE.cuh"
 
-%! codeinsert: Lennard-JonesHeader
+%! codeinsert: namespaceUAMMD
 
 struct InputParameters {
-  %! codeinsert: Lennard-JonesInputParameters
+  %! codeinsert: NVEInputParameters
 };
 
 InputParameters readParameterFile(std::shared_ptr<System> sys)
@@ -511,12 +554,12 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
       sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
       exit(-1);
     }
-    %! codeinsert: Lennard-JonesDefaultParameterList
+    %! codeinsert: NVEDefaultParameterList
   }
   InputFile parameterFile("data.main", sys);
   InputParameters params;
 
-  %! codeinsert: Lennard-JonesReadParameterFile
+  %! codeinsert: NVEReadParameterFile
 
   return params;
 }
@@ -718,10 +761,14 @@ Also, back up your data.
 \begin{comment}
 \begin{lstlisting}
 %! codefile: code/checkpoints.cu
-%! codeinsert: Lennard-JonesHeader
+%! codeinsert: includeGenericMD
+%! codeinsert: includeLennard-Jones
+# include "Integrator/VerletNVE.cuh"
+
+%! codeinsert: namespaceUAMMD
 
 struct InputParameters {
-  %! codeinsert: Lennard-JonesInputParameters
+  %! codeinsert: NVEInputParameters
   %! codeinsert: checkpointParameters
 };
 
@@ -734,12 +781,12 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
       sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
       exit(-1);
     }
-    %! codeinsert: Lennard-JonesDefaultParameterList
+    %! codeinsert: NVEDefaultParameterList
   }
   InputFile parameterFile("data.main", sys);
   InputParameters params;
 
-  %! codeinsert: Lennard-JonesReadParameterFile
+  %! codeinsert: NVEReadParameterFile
   %! codeinsert: checkpointReadParameterFile
 
   return params;
@@ -870,7 +917,8 @@ energy (that is, $k_BT$).
 \end{lstlisting}
 This integrator uses the thermal energy to set the initial velocities of the 
 particles, so we can loose the line referring to \texttt{VerletParams.energy} 
-from previous versions of our code.
+from previous versions of our code. We can also delete every mention of the 
+\texttt{particleEnergy} input parameter.
 
 The thermostat assumes that at equilibrium the system should lie stationary with 
 respect to the simulation box, so it will tend to slow down the centre of mass 
@@ -882,7 +930,7 @@ if it begins with a drift.
   \end{center}
   \caption{\label{Langevin}Average energy per particle (\textit{left}) and 
            thermal energy (\textit{right}) for a system of $10^5$ particles
-           with Lennard-Jones interactions in a $128^3\ \sigma$ box with
+           with Lennard-Jones interactions in a $128^3\ \sigma^3$ box with
            periodic boundary conditions. The grey solid line corresponds to an 
            NVE simulation, while the black curves plot the evolution of a 
            thermostatted system with different values of the friction parameter 
@@ -905,21 +953,17 @@ times.
 \begin{comment}
 \begin{lstlisting}
 %! codefile: code/Langevin.cu
-# include "uammd.cuh"
-# include "utils/InputFile.h"
-# include "utils/InitialConditions.cuh"
-# include "Interactor/Potential/Potential.cuh"
-# include "Interactor/NeighbourList/CellList.cuh"
-# include "Interactor/PairForces.cuh"
+%! codeinsert: includeGenericMD
+%! codeinsert: includeLennard-Jones
 %! codeinsert: includeVerletNVT
 
-using namespace uammd;
-using std::make_shared;
-using std::endl;
+%! codeinsert: namespaceUAMMD
 
 struct InputParameters {
+  %! codeinsert: genericMDInputParameters
   %! codeinsert: Lennard-JonesInputParameters
   %! codeinsert: LangevinParameters
+  real mass;
   %! codeinsert: checkpointParameters
 };
 
@@ -932,15 +976,20 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
       sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
       exit(-1);
     }
+    %! codeinsert: genericMDDefaultParameterList
     %! codeinsert: Lennard-JonesDefaultParameterList
     %! codeinsert: LangevinDefaultParameterList
+    defaultParameters<<"mass 1.0"<<endl;
   }
   InputFile parameterFile("data.main", sys);
   InputParameters params;
 
+  %! codeinsert: genericMDReadParameterFile
   %! codeinsert: Lennard-JonesReadParameterFile
   %! codeinsert: LangevinReadParameterFile
   %! codeinsert: checkpointReadParameterFile
+  parameterFile.getOption("mass",
+    InputFile::Required)>>params.mass;
 
   return params;
 }
@@ -1005,39 +1054,138 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
-\section{Brownian Dynamics}
+\section{Brownian dynamics}
 
-Overdamped limit
+Observed through a microscope, a small grain of pollen floating in water jiggles 
+incessantly due to impacts from the even tinier molecules that surround it. In 
+the grain's minuscule world, no sooner has it started to move one way than it 
+feels a sudden jolt that directs it somewhere else. The resulting overdamped 
+dynamics may conveniently be thought of as a succession of small random jumps in 
+which the velocity plays no role.
 
+In mathematical terms, we express the evolution of the system with a stochastic 
+differential equation (in the It\=o interpretation).
+\begin{equation*}
+  d\mathbf{r} = M\mathbf{F}\ dt + \sqrt{2 M k_BT} \mathbf{dW}.
+\end{equation*}
+Here, $\mathbf{r}$ represents the position and $\mathbf{F}$ the force. $M$ is 
+known as the mobility and $\mathbf{dW}$ stands for the Wiener process. We won't 
+worry about the mathematical subtleties and will simply accept that the 
+equation, known as Brownian motion, adequately models small immersed particles, 
+like fine dust, for example.
+
+Brownian dynamics have counter-intuitive properties. Because the particles 
+change the direction of their displacements from one instant to the next, we 
+cannot define the velocities, the microscopic environment lacks inertia, and 
+mass ceases to play a role in the motions.
+
+UAMMD includes several integrators for the aforementioned stochastic 
+differential equation, the most popular of which is the popular Euler-Maruyama 
+scheme. Include them with:
 \begin{lstlisting}
 %! codeblock: includeBrownianDynamics
-# include "Integrator/BrownianDynamics.cu" //!
+# include "Integrator/BrownianDynamics.cuh" //!
 %! codeblockend !//
 \end{lstlisting}
 
-No need for checkpoints
+The new integrators need a thermal energy and viscosity parameter, as well as 
+the particle radius. The latter two values determine the mobility. Larger 
+particles and higher viscosities lead to smaller mobilities.
+\begin{lstlisting}
+%! codeblock: BrownianDynamicsInputParameters
+  real thermalEnergy;
+  real viscosity;
+  real hydrodynamicRadius; //!
+%! codeblockend !//
+\end{lstlisting}
+We will list them as having a default value equal to one,
+\begin{lstlisting}
+%! codeblock: BrownianDynamicsDefaultParameterList
+    defaultParameters<<"thermalEnergy 1.0"<<endl;
+    defaultParameters<<"viscosity 1.0"<<endl;
+    defaultParameters<<"hydrodynamicRadius 1.0"<<endl; //!
+%! codeblockend !//
+\end{lstlisting}
+and will read them in from the \texttt{data.main} parameter file in the 
+customary way.
+\begin{comment}
+\begin{lstlisting}
+%! codeblock: BrownianDynamicsReadParameterFile
+  parameterFile.getOption("thermalEnergy",
+    InputFile::Required)>>params.thermalEnergy;
+  parameterFile.getOption("viscosity",
+    InputFile::Required)>>params.viscosity;
+  parameterFile.getOption("hydrodynamicRadius",
+    InputFile::Required)>>params.hydrodynamicRadius; //!
+%! codeblockend !//
+\end{lstlisting}
+\end{comment}
 
+When we read the initial configuration from a file, it should only contain 
+coordinates, not velocities.
+\begin{lstlisting}
+%! codeblock: BrownianDynamicsReadPosition
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
 
-MSD
+    std::string inputFile = simParams.inputFile;
+    std::ifstream in(inputFile);
+
+    for(int i = 0; i < numberOfParticles; ++i) {
+      in>>position[i].x>>position[i].y>>position[i].z;
+      position[i].w = 0;
+    }
+%! codeblockend
+\end{lstlisting}
+
+Activating Brownian dynamics integrators the pattern that we have become 
+accustomed to by now.
+\begin{lstlisting}
+%! codeblock: BrownianDynamicsIntegrator
+  using EulerMaruyama = BD::EulerMaruyama;
+  EulerMaruyama::Parameters EMParams;
+  EMParams.dt = simParams.dt;
+  EMParams.temperature = simParams.thermalEnergy;
+  EMParams.viscosity = simParams.viscosity;
+  EMParams.hydrodynamicRadius = simParams.hydrodynamicRadius;
+
+  auto integrator
+    = make_shared<EulerMaruyama>(particles, sys, EMParams);//!
+%! codeblockend !//
+\end{lstlisting}
+In previous Lennard-Jones simulations, we got away with a time step of $10^{-2}$ 
+but this setup really requires safer steps of size $10^{-3}$, as random 
+fluctuations could push two particles too close together and this might create 
+an explosive chain reaction.
+
+In many ways, however, Brownian Dynamics simplifies our work. We no longer have 
+to deal with masses and we don't need the velocities to restore the state. 
+Momentum has become an undefined property and we can output the temperature 
+directly, without having to calculate it first.
+\begin{lstlisting}
+%! codeblock: BrownianDynamicsOutputMacro
+      macro<<step*simParams.dt<<" ";
+      macro<<getTotalEnergy(integrator, particles)<<" ";
+      macro<<" N/A N/A N/A "; /* Undefined total momentum */
+      macro<<simParams.thermalEnergy<<endl; //!
+%! codeblockend !//
+\end{lstlisting}
 
 \begin{comment}
 \begin{lstlisting}
 %! codefile: code/BrownianDynamics.cu
-# include "uammd.cuh"
-# include "utils/InputFile.h"
-# include "utils/InitialConditions.cuh"
-# include "Interactor/Potential/Potential.cuh"
-# include "Interactor/NeighbourList/CellList.cuh"
-# include "Interactor/PairForces.cuh"
+%! codeinsert: includeGenericMD
+%! codeinsert: includeLennard-Jones
 %! codeinsert: includeBrownianDynamics
 
-using namespace uammd;
-using std::make_shared;
-using std::endl;
+%! codeinsert: namespaceUAMMD
 
 struct InputParameters {
+  %! codeinsert: genericMDInputParameters
   %! codeinsert: Lennard-JonesInputParameters
-  %! codeinsert: LangevinParameters
+  %! codeinsert: BrownianDynamicsInputParameters
+  std::string inputFile;
 };
 
 InputParameters readParameterFile(std::shared_ptr<System> sys)
@@ -1049,24 +1197,23 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
       sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
       exit(-1);
     }
+    %! codeinsert: genericMDDefaultParameterList
     %! codeinsert: Lennard-JonesDefaultParameterList
-    %! codeinsert: LangevinDefaultParameterList
+    %! codeinsert: BrownianDynamicsDefaultParameterList
   }
   InputFile parameterFile("data.main", sys);
   InputParameters params;
 
+  %! codeinsert: genericMDReadParameterFile
   %! codeinsert: Lennard-JonesReadParameterFile
-  %! codeinsert: LangevinReadParameterFile
-  %! codeinsert: checkpointReadParameterFile
+  %! codeinsert: BrownianDynamicsReadParameterFile
+  parameterFile.getOption("inputFile",
+    InputFile::Optional)>>params.inputFile;
 
   return params;
 }
 
 %! codeinsert: getTotalEnergy
-
-%! codeinsert: getTotalMomentum
-
-%! codeinsert: getThermalEnergy
 
 int main(int argc, char *argv[]){
 
@@ -1082,16 +1229,23 @@ int main(int argc, char *argv[]){
 
   %! codeinsert: LJsimulationBox src: chapters/first_simulation.tex
 
-  %! codeinsert: checkpointInitialPositions
+  if(simParams.inputFile.empty()) {
+    sys->log<System::MESSAGE>("Creating new initial positions.");
 
-  %! codeinsert: Lennard-JonesFillMass
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
 
-  %! codeinsert: VerletNVTParameters
-  /* initVelocities not implemented yet
-  %! codeinsert: checkpointInitVelocities
-  */
+    auto initial =  initLattice(box.boxSize,
+                                numberOfParticles, sc);
 
-  %! codeinsert: Verlet src: chapters/first_simulation.tex
+    std::copy(initial.begin(), initial.end(), position.begin());
+  } else {
+    sys->log<System::MESSAGE>("Reading initial positions and velocities from file.");
+    %! codeinsert: BrownianDynamicsReadPosition
+  }
+
+  %! codeinsert: BrownianDynamicsIntegrator
 
   %! codeinsert: Lennard-JonesPotential
 
@@ -1105,9 +1259,20 @@ int main(int argc, char *argv[]){
   for(int step = 0; step < numberOfSteps; ++step) {
     integrator->forwardTime();
 
-    %! codeinsert: Lennard-JonesOutputData
+    if(printEverynSteps > 0
+       and step % printEverynSteps == 1) {
 
-    %! codeinsert: saveState
+      auto position
+        = particles->getPos(access::location::cpu,
+                            access::mode::read);
+      const int * index = particles->getIdOrderedIndices(access::location::cpu);
+
+      out<<endl;
+      for(int id = 0; id < numberOfParticles; ++id)
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl; //!
+
+      %! codeinsert: BrownianDynamicsOutputMacro
+    }
   }
 
   sys->finish();
@@ -1118,8 +1283,9 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
+%% Shearing...
 
-\section{Structure and pressure}
+\section{Diffusion, structure and pressure}
 
 Post-processing
 
@@ -1147,7 +1313,8 @@ List of programs written in this chapter:
    simulations from saved checkpoints (*section*: 3.3).
 * `Langevin.cu`: Lennard-Jones molecular dynamics simulation with a Langevin
    thermostat (*section*: 3.4).
-%! codeblockend
 * `Brownian_dynamics.cu:`: Brownian dynamics simulation with Lennard-Jones
    interactions (*section*: 3.5).
+%! codeblockend
 \end{comment}
+

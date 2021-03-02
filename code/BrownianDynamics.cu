@@ -4,7 +4,7 @@
 # include "Interactor/Potential/Potential.cuh"
 # include "Interactor/NeighbourList/CellList.cuh"
 # include "Interactor/PairForces.cuh"
-# include "Integrator/VerletNVE.cuh"
+# include "Integrator/BrownianDynamics.cuh" //!
 
 using namespace uammd;
 using std::make_shared;
@@ -21,10 +21,10 @@ struct InputParameters {
   real epsilon;
   real sigma;
   real cutOff;
-  real mass;
-  real particleEnergy;
-  int checkpointEverynSteps;
-  std::string inputFile; //!
+  real thermalEnergy;
+  real viscosity;
+  real hydrodynamicRadius; //!
+  std::string inputFile;
 };
 
 InputParameters readParameterFile(std::shared_ptr<System> sys)
@@ -46,8 +46,9 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     defaultParameters<<"epsilon 1.0"<<endl;
     defaultParameters<<"sigma 1.0"<<endl;
     defaultParameters<<"cutOff 2.5"<<endl;
-    defaultParameters<<"mass 1.0"<<endl;
-    defaultParameters<<"particleEnergy 1.0"<<endl;
+    defaultParameters<<"thermalEnergy 1.0"<<endl;
+    defaultParameters<<"viscosity 1.0"<<endl;
+    defaultParameters<<"hydrodynamicRadius 1.0"<<endl; //!
   }
   InputFile parameterFile("data.main", sys);
   InputParameters params;
@@ -72,15 +73,14 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     InputFile::Required)>>params.sigma;
   parameterFile.getOption("cutOff",
     InputFile::Required)>>params.cutOff;
-  parameterFile.getOption("mass",
-    InputFile::Required)>>params.mass;
-  parameterFile.getOption("particleEnergy",
-    InputFile::Required)>>params.particleEnergy;
-  params.checkpointEverynSteps = 0;
-  parameterFile.getOption("checkpointEverynSteps",
-    InputFile::Optional)>>params.checkpointEverynSteps;
+  parameterFile.getOption("thermalEnergy",
+    InputFile::Required)>>params.thermalEnergy;
+  parameterFile.getOption("viscosity",
+    InputFile::Required)>>params.viscosity;
+  parameterFile.getOption("hydrodynamicRadius",
+    InputFile::Required)>>params.hydrodynamicRadius; //!
   parameterFile.getOption("inputFile",
-    InputFile::Optional)>>params.inputFile; //!
+    InputFile::Optional)>>params.inputFile;
 
   return params;
 }
@@ -109,49 +109,6 @@ double getTotalEnergy(std::shared_ptr<Integrator> integrator,
   }
   return totalEnergy;
 } //!
-
-real3 getTotalMomentum(std::shared_ptr<ParticleData> particles){
-    auto velocity
-      = particles->getVel(access::location::cpu,
-                          access::mode::read);
-    auto mass
-      = particles->getMass(access::location::cpu,
-                           access::mode::read);
-
-    real3 totalMomentum = make_real3(0.0, 0.0, 0.0);
-
-    for(int i = 0; i < particles->getNumParticles(); ++i) {
-      totalMomentum += mass[i]*velocity[i];
-    }
-
-  return totalMomentum;
-} //!
-
-double getThermalEnergy(std::shared_ptr<ParticleData> particles){
-  int N = particles->getNumParticles();
-  auto velocity
-    = particles->getVel(access::location::cpu,
-                          access::mode::read);
-  auto mass
-    = particles->getMass(access::location::cpu,
-                           access::mode::read);
-
-  real3 Vcm = make_real3(0.0, 0.0, 0.0);
-  double M = real(0.0);
-
-  for(int i = 0; i < N; ++i) {
-    Vcm += mass[i]*velocity[i];
-    M += mass[i];
-  }
-  Vcm /= M; //!
-  double kineticEnergy = real(0.0);
-  for(int i = 0; i < N; ++i) {
-    kineticEnergy
-     += real(0.5)*mass[i]*dot(velocity[i] - Vcm, velocity[i] - Vcm);
-  }
-
-  return real(2.0/(3.0*N))*kineticEnergy;
-}//!
 
 int main(int argc, char *argv[]){
 
@@ -188,40 +145,25 @@ int main(int argc, char *argv[]){
     auto position
       = particles->getPos(access::location::cpu,
                           access::mode::write);
-    auto velocity
-      = particles->getVel(access::location::cpu,
-                          access::mode::write);
 
     std::string inputFile = simParams.inputFile;
     std::ifstream in(inputFile);
 
     for(int i = 0; i < numberOfParticles; ++i) {
-      in>>position[i].x>>position[i].y>>position[i].z
-        >>velocity[i].x>>velocity[i].y>>velocity[i].z;
+      in>>position[i].x>>position[i].y>>position[i].z;
       position[i].w = 0;
     }
-  } //!
-
-  {
-    auto mass
-      = particles->getMass(access::location::cpu,
-                           access::mode::write);
-    std::fill(mass.begin(), mass.end(), simParams.mass);
   }
 
-  using Verlet = VerletNVE;
-  Verlet::Parameters VerletParams;
-  VerletParams.dt = simParams.dt;
-  if(simParams.inputFile.empty()) {
-    sys->log<System::MESSAGE>("UAMMD will generate new velocities.");
-    VerletParams.initVelocities = true;
-    VerletParams.energy = simParams.particleEnergy;
-  } else {
-    VerletParams.initVelocities = false;
-  } //!
+  using EulerMaruyama = BD::EulerMaruyama;
+  EulerMaruyama::Parameters EMParams;
+  EMParams.dt = simParams.dt;
+  EMParams.temperature = simParams.thermalEnergy;
+  EMParams.viscosity = simParams.viscosity;
+  EMParams.hydrodynamicRadius = simParams.hydrodynamicRadius;
 
   auto integrator
-    = make_shared<Verlet>(particles, sys, VerletParams);//!
+    = make_shared<EulerMaruyama>(particles, sys, EMParams);//!
 
   auto LJPotential = make_shared<Potential::LJ>(sys);
   {
@@ -272,34 +214,13 @@ int main(int argc, char *argv[]){
 
       macro<<step*simParams.dt<<" ";
       macro<<getTotalEnergy(integrator, particles)<<" ";
-      macro<<getTotalMomentum(particles)<<" ";
-      macro<<getThermalEnergy(particles)<<endl;
+      macro<<" N/A N/A N/A "; /* Undefined total momentum */
+      macro<<simParams.thermalEnergy<<endl; //!
     }
-
-    if(simParams.checkpointEverynSteps > 0
-       and step % simParams.checkpointEverynSteps == 1) {
-      auto position
-        = particles->getPos(access::location::cpu,
-                            access::mode::read);
-      auto velocity
-        = particles->getVel(access::location::cpu,
-                            access::mode::read);
-
-
-      std::string checkpointFile
-        = "checkpoint."
-          + std::to_string(step/simParams.checkpointEverynSteps)
-          + ".dat";
-      std::ofstream checkpoint(checkpointFile);
-
-      for(int i = 0; i < numberOfParticles; ++i) {
-        checkpoint<<position[i].x<<" "<<position[i].y<<" "
-                  <<position[i].z<<" "<<velocity[i]<<endl;
-      }
-    } //!
   }
 
   sys->finish();
 
   return 0;
 }
+
