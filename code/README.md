@@ -51,3 +51,5 @@ The comment ``//!`` marks the ends of code snippets in the text.
    simulations from saved checkpoints (*section*: 3.3).
 * `Langevin.cu`: Lennard-Jones molecular dynamics simulation with a Langevin
    thermostat (*section*: 3.4).
+* `Brownian_dynamics.cu:`: Brownian dynamics simulation with Lennard-Jones
+   interactions (*section*: 3.5).
