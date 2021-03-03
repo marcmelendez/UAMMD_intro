@@ -53,3 +53,5 @@ The comment ``//!`` marks the ends of code snippets in the text.
    thermostat (*section*: 3.4).
 * `Brownian_dynamics.cu:`: Brownian dynamics simulation with Lennard-Jones
    interactions (*section*: 3.5).
+* `shear.cu:`: Brownian dynamics simulation with Lennard-Jones particles 
+   suspended in a shear flow (*section*: 3.5).

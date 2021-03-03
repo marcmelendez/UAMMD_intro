@@ -83,8 +83,9 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     InputFile::Required)>>params.hydrodynamicRadius; //!
   parameterFile.getOption("inputFile",
     InputFile::Optional)>>params.inputFile;
+  params.shearRate = 0;
   parameterFile.getOption("shearRate",
-    InputFile::Required)>>params.shearRate;
+    InputFile::Optional)>>params.shearRate;
 
   return params;
 }
@@ -125,7 +126,7 @@ int main(int argc, char *argv[]){
   auto particles
     = make_shared<ParticleData>(numberOfParticles, sys);
 
-  real L = std::numeric_limits<real>::infinity();
+  real L = std::numeric_limits<real>::infinity(); //!
 
   Box box(make_real3(L, L, L));
   bool periodicityX = true, periodicityY = true,
@@ -142,7 +143,7 @@ int main(int argc, char *argv[]){
 
     auto initial
       =  initLattice(make_real3(simParams.L, simParams.L, simParams.L),
-                     numberOfParticles, sc);
+                     numberOfParticles, sc); //!
 
     std::copy(initial.begin(), initial.end(), position.begin());
   } else {
@@ -216,7 +217,7 @@ int main(int argc, char *argv[]){
 
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
-        out<<make_real3(position[index[id]])<<endl;
+        out<<make_real3(position[index[id]])<<endl; //!
 
       macro<<step*simParams.dt<<" ";
       macro<<getTotalEnergy(integrator, particles)<<" ";

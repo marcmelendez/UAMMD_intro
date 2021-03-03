@@ -195,8 +195,8 @@ real3 getTotalMomentum(std::shared_ptr<ParticleData> particles){
 \end{lstlisting}
 
 We have two new tools to add to our Lennard-Jones code from chapter one. I'll 
-include them above the \texttt{main} function. We'll include two novel 
-parameters into the \texttt{InputParamters} data structure introduced in section 
+include them above the \texttt{main} function. Two novel parameters will appear 
+in the \texttt{InputParamters} data structure introduced in section 
 \ref{Parameter_files}: the mass of our particles and the name of the file 
 recording measured data.
 \begin{lstlisting}
@@ -285,8 +285,8 @@ initial state we set up.
 
 By contrast, the temperature connects the microscopic world of molecular 
 collisions with the macroscopic world of flasks and thermometers. The 
-equipartition theorem states that the expected value of a particle at 
-equilibrium equals
+equipartition theorem states that the expected value for the kinetic energy of a 
+particle at equilibrium equals
 \begin{equation*}
   \frac{1}{2} m \left\langle v^2 \right\rangle = \frac{3}{2}k_B T,
 \end{equation*}
@@ -670,7 +670,8 @@ As you can see, we set the default value of \texttt{checkpointEverynSteps} to
 zero, which means no checkpointing.
 
 When the parameters do not include an \texttt{inputFile}, the program should 
-generate the initial positions and velocities.
+generate the initial positions and velocities. Otherwise, it should read them 
+in.
 \begin{lstlisting}
 %! codeblock: checkpointInitialPositions
   if(simParams.inputFile.empty()) {
@@ -1080,8 +1081,8 @@ cannot define the velocities, the microscopic environment lacks inertia, and
 mass ceases to play a role in the motions.
 
 UAMMD includes several integrators for the aforementioned stochastic 
-differential equation, the most popular of which is the popular Euler-Maruyama 
-scheme. Include them with:
+differential equation, the most popular of which is the Euler-Maruyama scheme.
+Include them with:
 \begin{lstlisting}
 %! codeblock: includeBrownianDynamics
 # include "Integrator/BrownianDynamics.cuh" //!
@@ -1139,7 +1140,7 @@ coordinates, not velocities.
 %! codeblockend
 \end{lstlisting}
 
-Activating Brownian dynamics integrators the pattern that we have become 
+Activate Brownian dynamics integrators with the pattern that we have become 
 accustomed to by now.
 \begin{lstlisting}
 %! codeblock: BrownianDynamicsIntegrator
@@ -1173,6 +1174,17 @@ directly, without having to calculate it first.
 \end{lstlisting}
 
 \begin{comment}
+%! codeblock: genericBDDefaultParameterList
+    defaultParameters<<"numberOfParticles 100000"<<endl;
+    defaultParameters<<"boxSize 128"<<endl;
+    defaultParameters<<"timeStep 0.001"<<endl;
+    defaultParameters<<"outputFile Lennard-Jones.dat"<<endl;
+    defaultParameters<<"measurementsFile LJmacro.dat"<<endl;
+    defaultParameters<<"numberOfSteps 10000"<<endl;
+    defaultParameters<<"printEverynSteps 1000"<<endl;
+%! codeblockend
+
+
 \begin{lstlisting}
 %! codefile: code/BrownianDynamics.cu
 %! codeinsert: includeGenericMD
@@ -1197,7 +1209,7 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
       sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
       exit(-1);
     }
-    %! codeinsert: genericMDDefaultParameterList
+    %! codeinsert: genericBDDefaultParameterList
     %! codeinsert: Lennard-JonesDefaultParameterList
     %! codeinsert: BrownianDynamicsDefaultParameterList
   }
@@ -1269,7 +1281,7 @@ int main(int argc, char *argv[]){
 
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
-        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl; //!
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
 
       %! codeinsert: BrownianDynamicsOutputMacro
     }
@@ -1283,7 +1295,185 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
-%% Shearing...
+The Brownian dynamics integrator has an interesting additional feature. You can 
+specify the elements of a strain-rate tensor $K$ that will deform the fluid 
+around your suspended particles, dragging them along. In that case, the 
+algorithm will solve the equation
+\begin{equation*}
+  d\mathbf{r} = (K\mathbf{r} + M\mathbf{F})\ dt + \sqrt{2 M k_BT} \mathbf{dW}.
+\end{equation*}
+
+As an example, we can change a few things in the Brownian dynamics code above to 
+simulate suspended particles in a simple shear flow, where the velocity in the 
+$y$ direction depends linearly on the $z$ coordinate. Let me assume that you 
+know how to add the new shear rate parameter to the module. A good default value 
+might be
+\begin{lstlisting}
+    defaultParameters<<"shearRate 0.01"<<endl;
+\end{lstlisting}
+We'll let our simulation box extend outwards indefinitely to avoid the problems 
+that periodic boundary conditions would cause. We do not want particles leaving 
+the top of our box and ramming into periodic images that oppose the flow.
+\begin{lstlisting}
+%! codeblock: infiniteL
+  real L = std::numeric_limits<real>::infinity(); //!
+%! codeblockend !//
+\end{lstlisting}
+But careful! Remember that we used the box size to lay out the particles on a 
+lattice, so change the initial positions to
+\begin{lstlisting}
+%! codeblock: shearInitialPositions
+    auto initial
+      =  initLattice(make_real3(simParams.L, simParams.L,
+                                simParams.L),
+                     numberOfParticles, sc); //!
+%! codeblockend !//
+\end{lstlisting}
+Periodic boundary conditions will no longer work, so we'll output the positions 
+directly.
+\begin{lstlisting}
+%! codeblock: shearOutputPositions
+        out<<make_real3(position[index[id]])<<endl; //!
+%! codeblockend !//
+\end{lstlisting}
+
+UAMMD stores the strain-rate tensor $K$ as a vector of three \texttt{real3} 
+variables. \texttt{K[0]} represents the first row of components,
+$(k_{xx},\ k_{xy},\ k_{xz})$ and
+\begin{lstlisting}
+%! codeblock: setShearRate
+  EMParams.K[1].z = simParams.shearRate; //!
+%! codeblockend !//
+\end{lstlisting}
+would set the value of the $k_{yz}$ component. The default value for all 
+components is zero.
+
+\begin{comment}
+\begin{lstlisting}
+%! codefile: code/shear.cu
+%! codeinsert: includeGenericMD
+%! codeinsert: includeLennard-Jones
+%! codeinsert: includeBrownianDynamics
+
+%! codeinsert: namespaceUAMMD
+
+struct InputParameters {
+  %! codeinsert: genericMDInputParameters
+  %! codeinsert: Lennard-JonesInputParameters
+  %! codeinsert: BrownianDynamicsInputParameters
+  real shearRate;
+  std::string inputFile;
+};
+
+InputParameters readParameterFile(std::shared_ptr<System> sys)
+{
+  if(!std::ifstream("data.main").good()) {
+    sys->log<System::WARNING>("File data.main not found. Creating file with default values.");
+    std::ofstream defaultParameters("data.main");
+    if(not defaultParameters.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
+      exit(-1);
+    }
+    %! codeinsert: genericBDDefaultParameterList
+    %! codeinsert: Lennard-JonesDefaultParameterList
+    %! codeinsert: BrownianDynamicsDefaultParameterList
+    defaultParameters<<"shearRate 0.01"<<endl;
+  }
+  InputFile parameterFile("data.main", sys);
+  InputParameters params;
+
+  %! codeinsert: genericMDReadParameterFile
+  %! codeinsert: Lennard-JonesReadParameterFile
+  %! codeinsert: BrownianDynamicsReadParameterFile
+  parameterFile.getOption("inputFile",
+    InputFile::Optional)>>params.inputFile;
+  params.shearRate = 0;
+  parameterFile.getOption("shearRate",
+    InputFile::Optional)>>params.shearRate;
+
+  return params;
+}
+
+%! codeinsert: getTotalEnergy
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  %! codeinsert: loadParameters src: chapters/first_simulation.tex
+
+  int numberOfParticles = simParams.numberOfParticles;
+  auto particles
+    = make_shared<ParticleData>(numberOfParticles, sys);
+
+  %! codeinsert: infiniteL
+
+  %! codeinsert: LJsimulationBox src: chapters/first_simulation.tex
+
+  if(simParams.inputFile.empty()) {
+    sys->log<System::MESSAGE>("Creating new initial positions.");
+
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
+
+    %! codeinsert: shearInitialPositions
+
+    std::copy(initial.begin(), initial.end(), position.begin());
+  } else {
+    sys->log<System::MESSAGE>("Reading initial positions and velocities from file.");
+    %! codeinsert: BrownianDynamicsReadPosition
+  }
+
+  using EulerMaruyama = BD::EulerMaruyama;
+  EulerMaruyama::Parameters EMParams;
+  EMParams.dt = simParams.dt;
+  EMParams.temperature = simParams.thermalEnergy;
+  EMParams.viscosity = simParams.viscosity;
+  EMParams.hydrodynamicRadius = simParams.hydrodynamicRadius;
+  %! codeinsert: setShearRate
+
+  auto integrator
+    = make_shared<EulerMaruyama>(particles, sys, EMParams);//!
+
+  %! codeinsert: Lennard-JonesPotential
+
+  %! codeinsert: Lennard-JonesInteraction src: chapters/first_simulation.tex
+
+  %! codeinsert: Lennard-JonesOutputFiles
+
+  int numberOfSteps = simParams.numberOfSteps;
+  int printEverynSteps = simParams.printEverynSteps;
+
+  for(int step = 0; step < numberOfSteps; ++step) {
+    integrator->forwardTime();
+
+    if(printEverynSteps > 0
+       and step % printEverynSteps == 1) {
+
+      auto position
+        = particles->getPos(access::location::cpu,
+                            access::mode::read);
+      const int * index = particles->getIdOrderedIndices(access::location::cpu);
+
+      out<<endl;
+      for(int id = 0; id < numberOfParticles; ++id)
+        %! codeinsert: shearOutputPositions
+
+      %! codeinsert: BrownianDynamicsOutputMacro
+    }
+  }
+
+  sys->finish();
+
+  return 0;
+}
+%! codeend
+\end{lstlisting}
+\end{comment}
+
+\section{Custom integrators}
+
 
 \section{Diffusion, structure and pressure}
 
@@ -1294,8 +1484,6 @@ Histograms
 RDF
 
 Virial
-
-\section{Custom integrators}
 
 Barostats
 
@@ -1315,6 +1503,8 @@ List of programs written in this chapter:
    thermostat (*section*: 3.4).
 * `Brownian_dynamics.cu:`: Brownian dynamics simulation with Lennard-Jones
    interactions (*section*: 3.5).
+* `shear.cu:`: Brownian dynamics simulation with Lennard-Jones particles 
+   suspended in a shear flow (*section*: 3.5).
 %! codeblockend
 \end{comment}
 
