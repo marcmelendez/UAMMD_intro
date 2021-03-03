@@ -163,62 +163,74 @@ double getThermalEnergy(std::shared_ptr<ParticleData> particles){
 
 __global__ void thermalise(int N,
                            real3 * velocity,
-                           real thermalVelocity,
-                           real probability){
+                           real * mass,
+                           real thermalEnergy,
+                           real probability,
+                           uint counter,
+                           uint seed){
   const int id = blockIdx.x*blockDim.x + threadIdx.x;
   if(id > N) return;
 
-  Saru rng(id);
+  Saru rng(id, counter, seed);
+
+  real velocitystd = sqrtf(thermalEnergy/mass[id]);
 
   if(rng.f() < probability) {
-    velocity[id] = make_real3(rng.gf(0, thermalVelocity),
-                              rng.gf(0, thermalVelocity).x);
+    velocity[id] = make_real3(rng.gf(0, velocitystd),
+                              rng.gf(0, velocitystd).x);
   }
 
   return;
 }
 
 class Andersen: public VerletNVE {
+  uint seed;
+  real thermalEnergy;
+  real meanFreeTime;
+  real dt;
+
   public:
-    struct Parameters: VerletNVE::Parameters {
-      real thermalEnergy;
-      real meanFreeTime;
-      real mass;
-      std::shared_ptr<ParticleData> particles;
-    } AndersenParameters;
+    Andersen(std::shared_ptr<ParticleData> particles,
+             std::shared_ptr<System> sys,
+             Parameters params,
+             real i_thermalEnergy,
+             real i_meanFreeTime) :
+             VerletNVE(particles, sys, params),
+             thermalEnergy(i_thermalEnergy),
+             meanFreeTime(i_meanFreeTime){
+      dt = params.dt;
+      seed = sys->rng().next32();
+    }
 
-  Andersen(std::shared_ptr<ParticleData> particles,
-           std::shared_ptr<System> sys,
-           Parameters params) :
-           VerletNVE(particles, sys, params){
-    AndersenParameters.particles = particles;
-    AndersenParameters.thermalEnergy = params.thermalEnergy;
-    AndersenParameters.meanFreeTime = params.meanFreeTime;
-  }
+    virtual void forwardTime() override{
+      VerletNVE::forwardTime();
 
-  virtual void forwardTime() override{
-    VerletNVE::forwardTime();
+      real collisionProbability
+        = dt/meanFreeTime;
 
-    real collisionProbability
-      = AndersenParameters.dt/AndersenParameters.meanFreeTime;
+      auto particles = pd;
+      auto velocity
+        = particles->getVel(access::location::gpu,
+                            access::mode::readwrite);
+      auto mass
+        = particles->getMass(access::location::gpu,
+                             access::mode::readwrite);
 
-    real thermalVelocity = sqrtf(AndersenParameters.thermalEnergy
-                                 /AndersenParameters.mass);
+      static uint numberOfCalls = 0;
+      int numberOfParticles = particles->getNumParticles();
+      int Nthreads = 128;
+      int Nblocks = numberOfParticles/Nthreads
+                    + ((numberOfParticles%Nthreads)?1:0);
 
-    auto velocity
-      = AndersenParameters.particles->getVel(access::location::gpu,
-                                             access::mode::readwrite);
-
-    int numberOfParticles = AndersenParameters.particles->getNumParticles();
-    int Nthreads = 128;
-    int Nblocks = numberOfParticles/Nthreads
-                  + ((numberOfParticles%Nthreads)?1:0);
-
-    thermalise<<<Nblocks,Nthreads,0,0>>>(numberOfParticles,
-                                         velocity.raw(),
-                                         thermalVelocity,
-                                         collisionProbability);
-  }
+      numberOfCalls++;
+      thermalise<<<Nblocks,Nthreads,0,0>>>(numberOfParticles,
+                                           velocity.raw(),
+                                           mass.raw(),
+                                           thermalEnergy,
+                                           collisionProbability,
+                                           numberOfCalls,
+                                           seed);
+    }
 };
 
 int main(int argc, char *argv[]){
@@ -282,10 +294,6 @@ int main(int argc, char *argv[]){
   VerletParams.dt = simParams.dt;
   VerletParams.initVelocities = true;
   VerletParams.energy = simParams.particleEnergy;
-  VerletParams.thermalEnergy = simParams.thermalEnergy;
-  VerletParams.mass = simParams.mass;
-  VerletParams.meanFreeTime = simParams.meanFreeTime; //!
-
   if(simParams.inputFile.empty()) {
     sys->log<System::MESSAGE>("UAMMD will generate new velocities.");
     VerletParams.initVelocities = true;
@@ -294,7 +302,9 @@ int main(int argc, char *argv[]){
   }
 
   auto integrator
-    = make_shared<Verlet>(particles, sys, VerletParams);//!
+    = make_shared<Verlet>(particles, sys, VerletParams,
+                          simParams.thermalEnergy,
+                          simParams.meanFreeTime);//!
 
   auto LJPotential = make_shared<Potential::LJ>(sys);
   {
