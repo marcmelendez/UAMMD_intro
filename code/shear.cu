@@ -142,7 +142,8 @@ int main(int argc, char *argv[]){
                           access::mode::write);
 
     auto initial
-      =  initLattice(make_real3(simParams.L, simParams.L, simParams.L),
+      =  initLattice(make_real3(simParams.L, simParams.L,
+                                simParams.L),
                      numberOfParticles, sc); //!
 
     std::copy(initial.begin(), initial.end(), position.begin());
@@ -167,7 +168,7 @@ int main(int argc, char *argv[]){
   EMParams.temperature = simParams.thermalEnergy;
   EMParams.viscosity = simParams.viscosity;
   EMParams.hydrodynamicRadius = simParams.hydrodynamicRadius;
-  EMParams.K[1].z = simParams.shearRate;
+  EMParams.K[1].z = simParams.shearRate; //!
 
   auto integrator
     = make_shared<EulerMaruyama>(particles, sys, EMParams);//!

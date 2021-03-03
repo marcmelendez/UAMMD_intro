@@ -4,7 +4,7 @@
 # include "Interactor/Potential/Potential.cuh"
 # include "Interactor/NeighbourList/CellList.cuh"
 # include "Interactor/PairForces.cuh"
-# include "Integrator/VerletNVE.cuh" //!
+# include "Integrator/VerletNVE.cuh"
 
 using namespace uammd;
 using std::make_shared;
@@ -21,12 +21,12 @@ struct InputParameters {
   real epsilon;
   real sigma;
   real cutOff;
-  real particleEnergy;
-  real thermalEnergy;
-  real meanFreeTime; //!
   real mass;
+  real particleEnergy;
   int checkpointEverynSteps;
   std::string inputFile; //!
+  real thermalEnergy;
+  real meanFreeTime; //!
 };
 
 InputParameters readParameterFile(std::shared_ptr<System> sys)
@@ -48,10 +48,10 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     defaultParameters<<"epsilon 1.0"<<endl;
     defaultParameters<<"sigma 1.0"<<endl;
     defaultParameters<<"cutOff 2.5"<<endl;
+    defaultParameters<<"mass 1.0"<<endl;
     defaultParameters<<"particleEnergy 1.0"<<endl;
     defaultParameters<<"thermalEnergy 1.0"<<endl;
-    defaultParameters<<"meanFreeTime 1.0"<<endl; //!
-    defaultParameters<<"mass 1.0"<<endl;
+    defaultParameters<<"meanFreeTime 1.0"<<endl;
   }
   InputFile parameterFile("data.main", sys);
   InputParameters params;
@@ -76,19 +76,19 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     InputFile::Required)>>params.sigma;
   parameterFile.getOption("cutOff",
     InputFile::Required)>>params.cutOff;
+  parameterFile.getOption("mass",
+    InputFile::Required)>>params.mass;
   parameterFile.getOption("particleEnergy",
     InputFile::Required)>>params.particleEnergy;
-  parameterFile.getOption("thermalEnergy",
-    InputFile::Required)>>params.thermalEnergy;
-  parameterFile.getOption("meanFreeTime",
-    InputFile::Required)>>params.meanFreeTime; //!
   params.checkpointEverynSteps = 0;
   parameterFile.getOption("checkpointEverynSteps",
     InputFile::Optional)>>params.checkpointEverynSteps;
   parameterFile.getOption("inputFile",
     InputFile::Optional)>>params.inputFile; //!
-  parameterFile.getOption("mass",
-    InputFile::Required)>>params.mass;
+  parameterFile.getOption("thermalEnergy",
+    InputFile::Required)>>params.thermalEnergy;
+  parameterFile.getOption("meanFreeTime",
+    InputFile::Required)>>params.meanFreeTime;
 
   return params;
 }
@@ -298,12 +298,12 @@ int main(int argc, char *argv[]){
     VerletParams.energy = simParams.particleEnergy;
   } else {
     VerletParams.initVelocities = false;
-  }
+  } //!
 
   auto integrator
     = make_shared<Verlet>(particles, sys, VerletParams,
                           simParams.thermalEnergy,
-                          simParams.meanFreeTime);//!
+                          simParams.meanFreeTime);
 
   auto LJPotential = make_shared<Potential::LJ>(sys);
   {

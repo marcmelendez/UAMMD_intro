@@ -55,3 +55,5 @@ The comment ``//!`` marks the ends of code snippets in the text.
    interactions (*section*: 3.5).
 * `shear.cu:`: Brownian dynamics simulation with Lennard-Jones particles 
    suspended in a shear flow (*section*: 3.5).
+* `Andersen.cu`: Lennard-Jones molecular dynamics simulation with an Andersen
+   thermostat (*section*: 3.6).

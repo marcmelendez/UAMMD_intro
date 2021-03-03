@@ -1305,7 +1305,7 @@ algorithm will solve the equation
 
 As an example, we can change a few things in the Brownian dynamics code above to 
 simulate suspended particles in a simple shear flow, where the velocity in the 
-$y$ direction depends linearly on the $z$ coordinate. Let me assume that you 
+$y$ direction depends linearly on the $z$ coordinate. I trust that by now you 
 know how to add the new shear rate parameter to the module. A good default value 
 might be
 \begin{lstlisting}
@@ -1474,6 +1474,196 @@ int main(int argc, char *argv[]){
 
 \section{Custom integrators}
 
+\begin{lstlisting}
+%! codeblock: AndersenParameters
+  real thermalEnergy;
+  real meanFreeTime; //!
+%! codeblockend !//
+\end{lstlisting}
+
+\begin{lstlisting}
+%! codeblock: Andersen
+  auto integrator
+    = make_shared<Verlet>(particles, sys, VerletParams,
+                          simParams.thermalEnergy,
+                          simParams.meanFreeTime);
+%! codeblockend !//
+\end{lstlisting}
+
+\begin{lstlisting}
+%! codeblock: VerletAndersen
+  using Verlet = Andersen;
+%! codeblockend !//
+\end{lstlisting}
+
+\begin{comment}
+\begin{lstlisting}
+%! codefile: code/Andersen.cu
+%! codeinsert: includeGenericMD
+%! codeinsert: includeLennard-Jones
+# include "Integrator/VerletNVE.cuh"
+
+%! codeinsert: namespaceUAMMD
+
+struct InputParameters {
+  %! codeinsert: NVEInputParameters
+  %! codeinsert: checkpointParameters
+  %! codeinsert: AndersenParameters
+};
+
+InputParameters readParameterFile(std::shared_ptr<System> sys)
+{
+  if(!std::ifstream("data.main").good()) {
+    sys->log<System::WARNING>("File data.main not found. Creating file with default values.");
+    std::ofstream defaultParameters("data.main");
+    if(not defaultParameters.is_open()) {
+      sys->log<System::CRITICAL>("Unable to create data.main file. Halting program.");
+      exit(-1);
+    }
+    %! codeinsert: NVEDefaultParameterList
+    defaultParameters<<"thermalEnergy 1.0"<<endl;
+    defaultParameters<<"meanFreeTime 1.0"<<endl;
+  }
+  InputFile parameterFile("data.main", sys);
+  InputParameters params;
+
+  %! codeinsert: NVEReadParameterFile
+  %! codeinsert: checkpointReadParameterFile
+  parameterFile.getOption("thermalEnergy",
+    InputFile::Required)>>params.thermalEnergy;
+  parameterFile.getOption("meanFreeTime",
+    InputFile::Required)>>params.meanFreeTime;
+
+  return params;
+}
+
+%! codeinsert: getTotalEnergy
+
+%! codeinsert: getTotalMomentum
+
+%! codeinsert: getThermalEnergy
+
+__global__ void thermalise(int N,
+                           real3 * velocity,
+                           real * mass,
+                           real thermalEnergy,
+                           real probability,
+                           uint counter,
+                           uint seed){
+  const int id = blockIdx.x*blockDim.x + threadIdx.x;
+  if(id > N) return;
+
+  Saru rng(id, counter, seed);
+
+  real velocitystd = sqrtf(thermalEnergy/mass[id]);
+
+  if(rng.f() < probability) {
+    velocity[id] = make_real3(rng.gf(0, velocitystd),
+                              rng.gf(0, velocitystd).x);
+  }
+
+  return;
+}
+
+class Andersen: public VerletNVE {
+  uint seed;
+  real thermalEnergy;
+  real meanFreeTime;
+  real dt;
+
+  public:
+    Andersen(std::shared_ptr<ParticleData> particles,
+             std::shared_ptr<System> sys,
+             Parameters params,
+             real i_thermalEnergy,
+             real i_meanFreeTime) :
+             VerletNVE(particles, sys, params),
+             thermalEnergy(i_thermalEnergy),
+             meanFreeTime(i_meanFreeTime){
+      dt = params.dt;
+      seed = sys->rng().next32();
+    }
+
+    virtual void forwardTime() override{
+      VerletNVE::forwardTime();
+
+      real collisionProbability
+        = dt/meanFreeTime;
+
+      auto particles = pd;
+      auto velocity
+        = particles->getVel(access::location::gpu,
+                            access::mode::readwrite);
+      auto mass
+        = particles->getMass(access::location::gpu,
+                             access::mode::readwrite);
+
+      static uint numberOfCalls = 0;
+      int numberOfParticles = particles->getNumParticles();
+      int Nthreads = 128;
+      int Nblocks = numberOfParticles/Nthreads
+                    + ((numberOfParticles%Nthreads)?1:0);
+
+      numberOfCalls++;
+      thermalise<<<Nblocks,Nthreads,0,0>>>(numberOfParticles,
+                                           velocity.raw(),
+                                           mass.raw(),
+                                           thermalEnergy,
+                                           collisionProbability,
+                                           numberOfCalls,
+                                           seed);
+    }
+};
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  %! codeinsert: loadParameters src: chapters/first_simulation.tex
+
+  int numberOfParticles = simParams.numberOfParticles;
+  auto particles
+    = make_shared<ParticleData>(numberOfParticles, sys);
+
+  real L = simParams.L;
+
+  %! codeinsert: LJsimulationBox src: chapters/first_simulation.tex
+
+  %! codeinsert: checkpointInitialPositions
+
+  %! codeinsert: Lennard-JonesFillMass
+
+  %! codeinsert: VerletAndersen
+  Verlet::Parameters VerletParams;
+  VerletParams.dt = simParams.dt;
+  %! codeinsert: checkpointInitVelocities
+
+  %! codeinsert: Andersen
+
+  %! codeinsert: Lennard-JonesPotential
+
+  %! codeinsert: Lennard-JonesInteraction src: chapters/first_simulation.tex
+
+  %! codeinsert: Lennard-JonesOutputFiles
+
+  int numberOfSteps = simParams.numberOfSteps;
+  int printEverynSteps = simParams.printEverynSteps;
+
+  for(int step = 0; step < numberOfSteps; ++step) {
+    integrator->forwardTime();
+
+    %! codeinsert: Lennard-JonesOutputData
+
+    %! codeinsert: saveState
+  }
+
+  sys->finish();
+
+  return 0;
+}
+%! codeend
+\end{lstlisting}
+\end{comment}
 
 \section{Diffusion, structure and pressure}
 
@@ -1505,6 +1695,8 @@ List of programs written in this chapter:
    interactions (*section*: 3.5).
 * `shear.cu:`: Brownian dynamics simulation with Lennard-Jones particles 
    suspended in a shear flow (*section*: 3.5).
+* `Andersen.cu`: Lennard-Jones molecular dynamics simulation with an Andersen
+   thermostat (*section*: 3.6).
 %! codeblockend
 \end{comment}
 
