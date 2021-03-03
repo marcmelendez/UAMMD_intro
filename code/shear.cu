@@ -23,7 +23,7 @@ struct InputParameters {
   real cutOff;
   real thermalEnergy;
   real viscosity;
-  real hydrodynamicRadius;
+  real hydrodynamicRadius; //!
   real shearRate;
   std::string inputFile;
 };
@@ -49,8 +49,8 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     defaultParameters<<"cutOff 2.5"<<endl;
     defaultParameters<<"thermalEnergy 1.0"<<endl;
     defaultParameters<<"viscosity 1.0"<<endl;
-    defaultParameters<<"hydrodynamicRadius 1.0"<<endl;
-    defaultParameters<<"shearRate 0.001"<<endl;
+    defaultParameters<<"hydrodynamicRadius 1.0"<<endl; //!
+    defaultParameters<<"shearRate 0.01"<<endl;
   }
   InputFile parameterFile("data.main", sys);
   InputParameters params;
@@ -80,11 +80,11 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
   parameterFile.getOption("viscosity",
     InputFile::Required)>>params.viscosity;
   parameterFile.getOption("hydrodynamicRadius",
-    InputFile::Required)>>params.hydrodynamicRadius;
-  parameterFile.getOption("shearRate",
-    InputFile::Required)>>params.shearRate;
+    InputFile::Required)>>params.hydrodynamicRadius; //!
   parameterFile.getOption("inputFile",
     InputFile::Optional)>>params.inputFile;
+  parameterFile.getOption("shearRate",
+    InputFile::Required)>>params.shearRate;
 
   return params;
 }
@@ -125,6 +125,14 @@ int main(int argc, char *argv[]){
   auto particles
     = make_shared<ParticleData>(numberOfParticles, sys);
 
+  real L = std::numeric_limits<real>::infinity();
+
+  Box box(make_real3(L, L, L));
+  bool periodicityX = true, periodicityY = true,
+       periodicityZ = true;
+  box.setPeriodicity(periodicityX, periodicityY,
+                     periodicityZ); //!
+
   if(simParams.inputFile.empty()) {
     sys->log<System::MESSAGE>("Creating new initial positions.");
 
@@ -132,9 +140,9 @@ int main(int argc, char *argv[]){
       = particles->getPos(access::location::cpu,
                           access::mode::write);
 
-    real L = simParams.L;
-    auto initial =  initLattice(make_real3(L, L, L),
-                                numberOfParticles, sc);
+    auto initial
+      =  initLattice(make_real3(simParams.L, simParams.L, simParams.L),
+                     numberOfParticles, sc);
 
     std::copy(initial.begin(), initial.end(), position.begin());
   } else {
@@ -174,9 +182,6 @@ int main(int argc, char *argv[]){
   }
 
   {
-    const real Infinity = std::numeric_limits<real>::infinity();
-    Box box(make_real3(Infinity, Infinity, Infinity));
-
     using LJForces = PairForces<Potential::LJ>;
     LJForces::Parameters interactionParams;
     interactionParams.box = box;
@@ -211,7 +216,7 @@ int main(int argc, char *argv[]){
 
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
-        out<<make_real3(position[index[id]])<<endl; //!
+        out<<make_real3(position[index[id]])<<endl;
 
       macro<<step*simParams.dt<<" ";
       macro<<getTotalEnergy(integrator, particles)<<" ";
@@ -224,4 +229,3 @@ int main(int argc, char *argv[]){
 
   return 0;
 }
-
