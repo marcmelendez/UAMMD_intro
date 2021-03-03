@@ -38,7 +38,7 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
     }
     defaultParameters<<"numberOfParticles 100000"<<endl;
     defaultParameters<<"boxSize 128"<<endl;
-    defaultParameters<<"timeStep 0.01"<<endl;
+    defaultParameters<<"timeStep 0.001"<<endl;
     defaultParameters<<"outputFile Lennard-Jones.dat"<<endl;
     defaultParameters<<"measurementsFile LJmacro.dat"<<endl;
     defaultParameters<<"numberOfSteps 10000"<<endl;
@@ -210,7 +210,7 @@ int main(int argc, char *argv[]){
 
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
-        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl; //!
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
 
       macro<<step*simParams.dt<<" ";
       macro<<getTotalEnergy(integrator, particles)<<" ";
@@ -223,4 +223,3 @@ int main(int argc, char *argv[]){
 
   return 0;
 }
-
