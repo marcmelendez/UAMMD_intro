@@ -168,20 +168,17 @@ __global__ void thermalise(int N,
                            real probability,
                            uint counter,
                            uint seed){
-  const int id = blockIdx.x*blockDim.x + threadIdx.x;
-  if(id > N) return;
-
-  Saru rng(id, counter, seed);
-
-  real velocitystd = sqrtf(thermalEnergy/mass[id]);
-
+  const int i = blockIdx.x*blockDim.x + threadIdx.x;
+  if(i > N) return; //!
+  Saru rng(i, counter, seed); //!
   if(rng.f() < probability) {
-    velocity[id] = make_real3(rng.gf(0, velocitystd),
-                              rng.gf(0, velocitystd).x);
+    real velocitystd = sqrtf(thermalEnergy/mass[i]);
+    velocity[i] = make_real3(rng.gf(0, velocitystd),
+                             rng.gf(0, velocitystd).x);
   }
 
   return;
-}
+} //!
 
 class Andersen: public VerletNVE {
   uint seed;
@@ -189,7 +186,7 @@ class Andersen: public VerletNVE {
   real meanFreeTime;
   real dt;
 
-  public:
+  public: //!
     Andersen(std::shared_ptr<ParticleData> particles,
              std::shared_ptr<System> sys,
              Parameters params,
@@ -200,8 +197,7 @@ class Andersen: public VerletNVE {
              meanFreeTime(i_meanFreeTime){
       dt = params.dt;
       seed = sys->rng().next32();
-    }
-
+    } //!
     virtual void forwardTime() override{
       VerletNVE::forwardTime();
 
@@ -231,7 +227,7 @@ class Andersen: public VerletNVE {
                                            numberOfCalls,
                                            seed);
     }
-};
+}; //!
 
 int main(int argc, char *argv[]){
 
@@ -289,7 +285,7 @@ int main(int argc, char *argv[]){
     std::fill(mass.begin(), mass.end(), simParams.mass);
   }
 
-  using Verlet = Andersen;
+  using Verlet = Andersen; //!
   Verlet::Parameters VerletParams;
   VerletParams.dt = simParams.dt;
   if(simParams.inputFile.empty()) {
@@ -303,7 +299,7 @@ int main(int argc, char *argv[]){
   auto integrator
     = make_shared<Verlet>(particles, sys, VerletParams,
                           simParams.thermalEnergy,
-                          simParams.meanFreeTime);
+                          simParams.meanFreeTime); //!
 
   auto LJPotential = make_shared<Potential::LJ>(sys);
   {

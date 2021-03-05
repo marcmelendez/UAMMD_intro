@@ -1474,27 +1474,188 @@ int main(int argc, char *argv[]){
 
 \section{Custom integrators}
 
+You would like your code to do something different. Of course you would. As soon 
+as you learn the basics, you start imagining scenarios with two thermostats 
+driving heat flow, or sinks and sources of particles. Then you need to write 
+your own integrator, implementing your custom versions of the 
+\texttt{forwardTime} and \texttt{sumEnergy} methods.
+
+As a simple educational exersice, we'll develop an Andersen thermostat for 
+UAMMD. The idea behind the algorithm resembles that of the Langevin thermostat. 
+Our system interacts with a medium at temperature $T$ that we do not represent 
+explicitly. In contrast to the Langevin method, where the thermal fluctuations 
+affect every time step, our particles only occasionally crash into a particle in 
+the medium and acquire a new velocity. In the time between collisions, 
+characterised by the \textit{mean free time}, they obey the laws of Hamiltonian 
+mechanics. Hence, our Andersen integrator will incorporate two extra parameters. 
 \begin{lstlisting}
 %! codeblock: AndersenParameters
   real thermalEnergy;
   real meanFreeTime; //!
 %! codeblockend !//
 \end{lstlisting}
-
+Don't forget to set their default values and read them in from 
+\texttt{data.main}. Within the main function, instead of \texttt{VerletNVE}, we 
+will use 
+\texttt{Andersen}.
+\begin{lstlisting}
+%! codeblock: VerletAndersen
+  using Verlet = Andersen; //!
+%! codeblockend !//
+\end{lstlisting}
+We will construct the integrator adding the two new parameters into the mix.
 \begin{lstlisting}
 %! codeblock: Andersen
   auto integrator
     = make_shared<Verlet>(particles, sys, VerletParams,
                           simParams.thermalEnergy,
-                          simParams.meanFreeTime);
+                          simParams.meanFreeTime); //!
+%! codeblockend !//
+\end{lstlisting}
+Simple enough to use, but the Andersen thermostat does not exist yet, so we will 
+have to code it ourselves.
+
+Let me begin with the heart of the algorithm. Particles have a given probability 
+of interacting with the medium and changing their velocity. Because we can 
+determine the outcome of this process independently for each of the particles, 
+the function becomes an ideal candidate for parallelisation. We will therefore 
+write the \texttt{thermalise} function as \texttt{\_\_global\_\_}, that is to 
+say, the operations will run on the GPU, but we will call them directly from a 
+host function running on the CPU.
+
+We want each thread to apply to a different particle. Thread number $i$ will 
+operate on particle $i$. Therefore, if $i$ exceeds the number of particles, we 
+just return without doing anything.
+\begin{lstlisting}
+%! codeblock: AndersenThermalise
+__global__ void thermalise(int N,
+                           real3 * velocity,
+                           real * mass,
+                           real thermalEnergy,
+                           real probability,
+                           uint counter,
+                           uint seed){
+  const int i = blockIdx.x*blockDim.x + threadIdx.x;
+  if(i > N) return; //!
+  %! codeinsert: SaruPRNG
+  %! codeinsert: thermalVelocity
+%! codeblockend !//
+\end{lstlisting}
+We need independent random numbers among different threads and time steps. UAMMD 
+includes the Saru generator, which accepts three seeds. Using the thread number 
+and a time step counter gets us the desired independent numbers.
+\begin{lstlisting}
+%! codeblock: SaruPRNG
+  Saru rng(i, counter, seed); //!
+%! codeblockend !//
+\end{lstlisting}
+Saru outputs a uniformly distributed random number in the $[0,\ 1)$ interval 
+with \texttt{rng.f()}. If it turns out that the particle interacted with the 
+medium, then we replace its velocity. With \texttt{rng.gf(mean, std)} you create 
+two random numbers from a normal distribution with the specified mean and 
+standard deviation. Because we need three components, we call \texttt{rng.gf} 
+twice, but the second time we only keep one of the two numbers generated 
+(selected with the \texttt{.x}). That will close the parallel section of our 
+algorithm.
+\begin{lstlisting}
+%! codeblock: thermalVelocity
+  if(rng.f() < probability) {
+    real velocitystd = sqrtf(thermalEnergy/mass[i]);
+    velocity[i] = make_real3(rng.gf(0, velocitystd),
+                             rng.gf(0, velocitystd).x);
+  }
+
+  return;
+} //!
 %! codeblockend !//
 \end{lstlisting}
 
+Now we can write the Andersen integrator. It should behave just like 
+\texttt{VerletNVE}, but call the \texttt{thermalise} function at the end of 
+every time step. We \textit{could} copy the whole of \texttt{VerletNVE},
+changing its name and tweaking its behaviour, but that would make our example 
+unnecesarily long. Instead, we shall write an integrator that inherits from
+\texttt{VerletNVE}, and that will save us from repeating most of its content.
 \begin{lstlisting}
-%! codeblock: VerletAndersen
-  using Verlet = Andersen;
+%! codeblock: AndersenThermostat
+class Andersen: public VerletNVE {
+  uint seed;
+  real thermalEnergy;
+  real meanFreeTime;
+  real dt;
+
+  public: //!
+  %! codeinsert: AndersenConstructor
+  %! codeinsert: AndersenForwardTime
 %! codeblockend !//
 \end{lstlisting}
+Above, \texttt{seed} stands for the random number generator seed.
+
+In addition to pointers to the \texttt{ParticleData} and \texttt{System}, we 
+agreed that the constructor would take the thermal energy and mean free time as 
+parameters. Before it initialises its internal \texttt{dt} and \texttt{seed} 
+variables, it calls the \texttt{VerletNVE} constructor and sets the values of
+\texttt{thermalEnergy} and \texttt{meanFreeTime}.
+\begin{lstlisting}
+%! codeblock: AndersenConstructor
+    Andersen(std::shared_ptr<ParticleData> particles,
+             std::shared_ptr<System> sys,
+             Parameters params,
+             real i_thermalEnergy,
+             real i_meanFreeTime) :
+             VerletNVE(particles, sys, params),
+             thermalEnergy(i_thermalEnergy),
+             meanFreeTime(i_meanFreeTime){
+      dt = params.dt;
+      seed = sys->rng().next32();
+    } //!
+%! codeblockend !//
+\end{lstlisting}
+
+The Andersen \texttt{forwardTime} function simply calls the parent VerletNVE 
+version and then calls \texttt{thermalise}. The code in between sets up the 
+values of all the arguments in the latter call.
+\begin{lstlisting}
+%! codeblock: AndersenForwardTime
+    virtual void forwardTime() override{
+      VerletNVE::forwardTime();
+
+      real collisionProbability
+        = dt/meanFreeTime;
+
+      auto particles = pd;
+      auto velocity
+        = particles->getVel(access::location::gpu,
+                            access::mode::readwrite);
+      auto mass
+        = particles->getMass(access::location::gpu,
+                             access::mode::readwrite);
+
+      static uint numberOfCalls = 0;
+      int numberOfParticles = particles->getNumParticles();
+      int Nthreads = 128;
+      int Nblocks = numberOfParticles/Nthreads
+                    + ((numberOfParticles%Nthreads)?1:0);
+
+      numberOfCalls++;
+      thermalise<<<Nblocks,Nthreads,0,0>>>(numberOfParticles,
+                                           velocity.raw(),
+                                           mass.raw(),
+                                           thermalEnergy,
+                                           collisionProbability,
+                                           numberOfCalls,
+                                           seed);
+    }
+}; //!
+%! codeblockend !//
+\end{lstlisting}
+We won't have to write \texttt{sumEnergy} because we inherited the parent 
+version of the function, which we don't need to change.
+
+I copied the definition of the Andersen thermostat above my \texttt{main} 
+function, as I prefer to keep each example in its own file, but the standard 
+practice would have it in a separate file, which you could then include at the 
+beginning of your module.
 
 \begin{comment}
 \begin{lstlisting}
@@ -1543,77 +1704,9 @@ InputParameters readParameterFile(std::shared_ptr<System> sys)
 
 %! codeinsert: getThermalEnergy
 
-__global__ void thermalise(int N,
-                           real3 * velocity,
-                           real * mass,
-                           real thermalEnergy,
-                           real probability,
-                           uint counter,
-                           uint seed){
-  const int id = blockIdx.x*blockDim.x + threadIdx.x;
-  if(id > N) return;
+%! codeinsert: AndersenThermalise
 
-  Saru rng(id, counter, seed);
-
-  real velocitystd = sqrtf(thermalEnergy/mass[id]);
-
-  if(rng.f() < probability) {
-    velocity[id] = make_real3(rng.gf(0, velocitystd),
-                              rng.gf(0, velocitystd).x);
-  }
-
-  return;
-}
-
-class Andersen: public VerletNVE {
-  uint seed;
-  real thermalEnergy;
-  real meanFreeTime;
-  real dt;
-
-  public:
-    Andersen(std::shared_ptr<ParticleData> particles,
-             std::shared_ptr<System> sys,
-             Parameters params,
-             real i_thermalEnergy,
-             real i_meanFreeTime) :
-             VerletNVE(particles, sys, params),
-             thermalEnergy(i_thermalEnergy),
-             meanFreeTime(i_meanFreeTime){
-      dt = params.dt;
-      seed = sys->rng().next32();
-    }
-
-    virtual void forwardTime() override{
-      VerletNVE::forwardTime();
-
-      real collisionProbability
-        = dt/meanFreeTime;
-
-      auto particles = pd;
-      auto velocity
-        = particles->getVel(access::location::gpu,
-                            access::mode::readwrite);
-      auto mass
-        = particles->getMass(access::location::gpu,
-                             access::mode::readwrite);
-
-      static uint numberOfCalls = 0;
-      int numberOfParticles = particles->getNumParticles();
-      int Nthreads = 128;
-      int Nblocks = numberOfParticles/Nthreads
-                    + ((numberOfParticles%Nthreads)?1:0);
-
-      numberOfCalls++;
-      thermalise<<<Nblocks,Nthreads,0,0>>>(numberOfParticles,
-                                           velocity.raw(),
-                                           mass.raw(),
-                                           thermalEnergy,
-                                           collisionProbability,
-                                           numberOfCalls,
-                                           seed);
-    }
-};
+%! codeinsert: AndersenThermostat
 
 int main(int argc, char *argv[]){
 
