@@ -1612,9 +1612,11 @@ variables, it calls the \texttt{VerletNVE} constructor and sets the values of
 %! codeblockend !//
 \end{lstlisting}
 
-The Andersen \texttt{forwardTime} function simply calls the parent VerletNVE 
-version and then calls \texttt{thermalise}. The code in between sets up the 
-values of all the arguments in the latter call.
+The Andersen \texttt{forwardTime} function simply calls the parent 
+\texttt{VerletNVE} version and then calls \texttt{thermalise}. The code in 
+between sets up the values of all the arguments in the latter call. Within UAMMD
+integrators, the variables \texttt{sys} and \texttt{pd} store the pointers to 
+the \texttt{System} and \texttt{ParticleData} information.
 \begin{lstlisting}
 %! codeblock: AndersenForwardTime
     virtual void forwardTime() override{
@@ -1758,9 +1760,142 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
-\section{Structure, diffusion and pressure}
+\begin{comment}
+% Euler integrator
 
-Histograms
+You might feel let down by the example above. I chose the Andersen thermostat as 
+an example precisely because I could sidestep the problem of dealing with all 
+the interactions. Having familiarised ourselves with the inner workings of an 
+interactor, we can boldly proceed to write a complete integrator from scratch. 
+The Euler scheme probably constitutes the simplest interesting example.
+\end{comment}
+
+\section{Structure, dynamics and pressure}
+
+Returning to the issue of measuring, I would like to write a short function to 
+determine the density of a system at different heights of the $z$ coordinate. It 
+will need to know the simulation box cross section, the number of particles and 
+the list of positions. To calculate the density, we simply slice our system 
+into bins, count the number of particles in each bin, and divide this number by 
+the volume corresponding to each slice. We'll allow the user to specify the name 
+of an output file, the lower and upper limits, and the number of bins into which 
+the data will be grouped.
+\begin{lstlisting}
+%! codeblock: density
+void density(std::string filename, real crossSection,
+             int numberOfParticles, real4 * position,
+             real min, real max, int numberOfBins){ //!
+%! codeblockend !//
+\end{lstlisting} 
+We don't want each new measurement to overwrite the previous one, so we specify 
+that we will append new data (\texttt{std::ios\_base::app}). Next, we work out 
+the bin size and clear the list of bins.
+\begin{lstlisting}
+%! codeblock: densityPrepareBins
+  std::ofstream densityFile;
+  densityFile.open(filename, std::ios_base::app);
+
+  real binSize = (max - min)/numberOfBins;
+  static std::vector<real> bin;
+  bin.resize(numberOfParticles);
+  std::fill(bin.begin(), bin.end(), real(0.0)); //!
+%! codeblockend !//
+\end{lstlisting}
+For each particle, add one to its corresponding bin.
+\begin{lstlisting}
+%! codeblock: densityFillBins
+  for(int i = 0; i < numberOfParticles; ++i) {
+    int binNumber = (int) floorf((position[i].z - min)/binSize);
+
+    if(binNumber >= 0 and binNumber < numberOfBins) {
+      bin[binNumber]++;
+    }
+  } //!
+%! codeblockend !//
+\end{lstlisting}
+Finally, output the positions and their corresponding densities.
+\begin{lstlisting}
+%! codeblock: densityOutput
+  for(int i = 0; i < numberOfBins; ++i) {
+    densityFile<<min + (i + real(0.5))*binSize<<" "
+               <<bin[i]/(numberOfParticles*binSize*crossSection)
+               <<endl;
+  }
+  densityFile<<endl;
+} //!
+%! codeblockend !//
+\end{lstlisting}
+I tested the function by including it into the free expansion of an ideal gas 
+that we saw in chapter one, and I plotted the result in Figure \ref{density}.
+
+\begin{figure}
+  \includegraphics[width = \textwidth]{figures/density.eps}
+  \caption{\label{density}Numerical density of particles (number of particles 
+           per unit of volume) versus height $z$ for the ideal gas expansion of 
+           Figure \ref{freeExpansion}. Darker lines plot later times.}
+\end{figure}
+
+\begin{comment}
+\begin{lstlisting}
+%! codefile: code/density.cu
+# include <iostream>
+# include "uammd.cuh"
+# include "Integrator/VerletNVE.cuh"
+
+using namespace uammd;
+using std::make_shared;
+using std::endl;
+
+%! codeinsert: density
+
+%! codeinsert: densityPrepareBins
+
+%! codeinsert: densityFillBins
+
+%! codeinsert: densityOutput
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  %! codeinsert: particleData src: chapters/first_simulation.tex
+
+  %! codeinsert: initialConditions src: chapters/first_simulation.tex
+
+  %! codeinsert: VerletParams src: chapters/first_simulation.tex
+
+  %! codeinsert: Verlet src: chapters/first_simulation.tex
+
+  std::string outputFile = "density.dat";
+
+  int numberOfSteps = 10000;
+  int printEverynSteps = 2000;
+
+  for(int step = 0; step < numberOfSteps; ++step) {
+    integrator->forwardTime();
+
+    if(printEverynSteps > 0
+       and step % printEverynSteps == 1) {
+      auto position
+        = particles->getPos(access::location::cpu,
+                            access::mode::read);
+
+      density(outputFile, L*L,
+              numberOfParticles, position.raw(),
+              -real(1.5)*L, real(1.5)*L, 100);
+    }
+  }
+
+  sys->finish();
+
+  return 0;
+} //!
+%! codeend !//
+\end{lstlisting}
+\end{comment}
+
+
+Other measurements: RDF, mean square displacements, time correlation functions.
 
 Post-processing
 
@@ -1788,6 +1923,8 @@ List of programs written in this chapter:
    suspended in a shear flow (*section*: 3.5).
 * `Andersen.cu`: Lennard-Jones molecular dynamics simulation with an Andersen
    thermostat (*section*: 3.6).
+* `density.cu`: Density profile of the ideal free gas expansion from sections
+   1.1&ndash;1.4 (*section*: 3.7).
 %! codeblockend
 \end{comment}
 

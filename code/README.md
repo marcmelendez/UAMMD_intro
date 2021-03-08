@@ -57,3 +57,5 @@ The comment ``//!`` marks the ends of code snippets in the text.
    suspended in a shear flow (*section*: 3.5).
 * `Andersen.cu`: Lennard-Jones molecular dynamics simulation with an Andersen
    thermostat (*section*: 3.6).
+* `density.cu`: Density profile of the ideal free gas expansion from sections
+   1.1&ndash;1.4 (*section*: 3.7).

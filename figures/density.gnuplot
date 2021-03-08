@@ -1,4 +1,4 @@
-set term postscript eps enhanced color font "Roman" size 10cm,5cm
+set term postscript eps enhanced color font "Roman" size 10cm,4cm
 set output "density.eps"
 
 set xlabel "Height {/:Italic z}"
