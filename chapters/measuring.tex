@@ -1760,14 +1760,228 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
-\begin{comment}
-% Euler integrator
-
-You might feel let down by the example above. I chose the Andersen thermostat as 
-an example precisely because I could sidestep the problem of dealing with all 
-the interactions. Having familiarised ourselves with the inner workings of an 
+You might feel let down by the example above. I chose the Andersen thermostat 
+precisely because I could sidestep the problem of dealing with all the 
+interactions. Having familiarised ourselves with the inner workings of an 
 interactor, we can boldly proceed to write a complete integrator from scratch. 
 The Euler scheme probably constitutes the simplest interesting example.
+
+Here comes a parallel version of the rule for updating positions and velocities.
+\begin{lstlisting}
+%! codeblock: EulerStep
+__global__ void EulerStep(int N, real dt,
+                          real4 * position,
+                          real3 * velocity,
+                          real * mass,
+                          real4 * force){
+  const int i = blockIdx.x*blockDim.x + threadIdx.x;
+  if(i > N) return;
+
+  position[i] += make_real4(velocity[i]*dt, real(0.0));
+  velocity[i] += make_real3(force[i].x*dt/mass[i],
+                            force[i].y*dt/mass[i],
+                            force[i].z*dt/mass[i]);
+
+  return;
+} //!
+%! codeblockend !//
+\end{lstlisting}
+Integrators do not just move the system forward in time. They also calculate the 
+kinetic part of the energy. The short function that follows adds the kinetic 
+energy of each particle to the energy vector (in parallel).
+\begin{lstlisting}
+%! codeblock: kineticEnergy
+__global__ void kineticEnergy(int N,
+                              real3 * velocity,
+                              real * mass,
+                              real * energy){
+  const int i = blockIdx.x*blockDim.x + threadIdx.x;
+  if(i > N) return;
+
+  energy[i] += real(0.5)*mass[i]*dot(velocity[i], velocity[i]);
+
+  return;
+} //!
+%! codeblockend !//
+\end{lstlisting}
+
+As with the Andersen thermostat, we will have to write an \texttt{Integrator}. 
+This includes a constructor and the \texttt{forwardTime} and \texttt{sumEnergy} 
+methods. The constructor will just set the value of the time step and call the 
+parent constructor for \texttt{Integrator}.
+\begin{lstlisting}
+%! codeblock: Euler
+class Euler : public Integrator {
+  real dt;
+
+  public:
+    struct Parameters {
+      real dt;
+    };
+
+    Euler(std::shared_ptr<ParticleData> particles,
+          std::shared_ptr<System> sys,
+          Parameters params) :
+          Integrator(particles,
+                     std::make_shared<ParticleGroup>(particles, sys, "ALL"),
+                     sys, "Euler"),
+          dt(params.dt){} //!
+  %! codeinsert: EulerForwardTime
+  %! codeinsert: EulerSumEnergy
+%! codeblockend !//
+\end{lstlisting}
+To move forward in time, we will calculate the forces on every particle. 
+Therefore, we first clear the force vector.
+\begin{lstlisting}
+%! codeblock: EulerForwardTime
+    virtual void forwardTime() override{
+      auto particles = pd;
+
+      {
+        auto force
+          = particles->getForce(access::location::cpu,
+                                access::mode::write);
+
+        std::fill(force.begin(), force.end(),
+                  make_real4(0.0, 0.0, 0.0, 0.0));
+      } //!
+      %! codeinsert: EulerSumForces
+      %! codeinsert: callEulerStep
+%! codeblockend !//
+\end{lstlisting}
+Next, we use the following loop to run the \texttt{sumForce} method of every 
+interaction added to the integrator.
+\begin{lstlisting}
+%! codeblock: EulerSumForces
+      for(auto interaction: interactors) {
+        interaction->sumForce(0);
+      } //!
+%! codeblockend !//
+\end{lstlisting}
+We close \texttt{forwardTime} getting the references to the position, velocity, 
+mass and force vectors ready for calling \texttt{EulerStep}.
+\begin{lstlisting}
+%! codeblock: callEulerStep
+      auto position
+        = particles->getPos(access::location::gpu,
+                            access::mode::readwrite);
+
+      auto velocity
+        = particles->getVel(access::location::gpu,
+                            access::mode::readwrite);
+
+      auto mass
+        = particles->getMass(access::location::gpu,
+                             access::mode::read);
+
+      auto force
+        = particles->getForce(access::location::gpu,
+                              access::mode::read);
+
+      int numberOfParticles = particles->getNumParticles();
+      int Nthreads = 128;
+      int Nblocks = numberOfParticles/Nthreads
+                    + ((numberOfParticles%Nthreads)?1:0);
+
+      EulerStep<<<Nblocks,Nthreads,0,0>>>(numberOfParticles, dt,
+                                          position.raw(),
+                                          velocity.raw(),
+                                          mass.raw(),
+                                          force.raw());
+    } //!
+%! codeblockend !//
+\end{lstlisting}
+
+Similarly, the final \texttt{sumEnergy} function in the Euler 
+\texttt{Integrator} just prepares the vectors for a call to 
+\texttt{kineticEnergy}.
+\begin{lstlisting}
+%! codeblock: EulerSumEnergy
+    virtual real sumEnergy() override{
+      auto particles = pd;
+
+      auto velocity
+        = particles->getVel(access::location::gpu,
+                            access::mode::read);
+
+      auto mass
+        = particles->getMass(access::location::gpu,
+                             access::mode::read);
+
+      auto energy
+        = particles->getEnergy(access::location::gpu,
+                               access::mode::write);
+
+      int numberOfParticles = particles->getNumParticles();
+      int Nthreads = 128;
+      int Nblocks = numberOfParticles/Nthreads
+                    + ((numberOfParticles%Nthreads)?1:0);
+
+      kineticEnergy<<<Nblocks,Nthreads,0,0>>>(numberOfParticles,
+                                              velocity.raw(),
+                                              mass.raw(),
+                                              energy.raw());
+      return 0;
+    }
+};
+%! codeblockend !//
+\end{lstlisting}
+
+In our attempt to keep things as simple as possible, we have omitted the code 
+that initialises velocities. You will have to deal with these yourself either by 
+setting them up within \texttt{main} or extending the \texttt{Integrator} with 
+code that you could copy from \texttt{VerletNVE}.
+
+Perhaps you would enjoy comparing simulations carried out with Verlet and Euler 
+integrations. If so, I recommend you compare the evolution of the total energy 
+of the system. You should see an unreasonable drift in the energy for the Euler 
+scheme which explains why researchers generally prefer Verlet's method.
+
+\begin{comment}
+One way to integrate the Euler scheme into a UAMMD module follows.
+\begin{lstlisting}
+%! codefile: code/Euler.cu
+# include "uammd.cuh"
+# include "utils/InitialConditions.cuh"
+# include "Interactor/Potential/Potential.cuh"
+# include "Interactor/NeighbourList/CellList.cuh"
+# include "Interactor/PairForces.cuh"
+# include "Integrator/Integrator.cuh"
+
+using namespace uammd;
+using std::make_shared;
+using std::endl;
+
+int main(int argc, char *argv[]){
+
+  auto sys = make_shared<System>(argc, argv);
+
+  %! codeinsert: particleData
+
+  %! codeinsert: latticeInitialConditions
+
+  %! codeinsert: VerletParams
+
+  %! codeinsert: Verlet
+
+  %! codeinsert: Lennard-JonesPotential
+
+  %! codeinsert: Lennard-JonesInteraction
+
+  std::string outputFile = "Lennard-Jones.dat";
+  std::ofstream out(outputFile);
+
+  int numberOfSteps = 1000;
+  int printEverynSteps = 100;
+
+  %! codeinsert: integration
+
+  sys->finish();
+
+  return 0;
+} //!
+%! codeend !//
+\end{lstlisting}
 \end{comment}
 
 \section{Structure, dynamics and pressure}
@@ -1894,12 +2108,17 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
+Concerning the microscopic structure of the system, you could calculate the 
+radial distribution function, as in Figure \ref{Lennard-Jones.rdf}, or, if you 
+wished to study the dynamics of molecules, their mean square displacement or the 
+time correlations of their velocities. Once you have learned how to access the 
+microscopic configuration, you can easily write functions that spit out the 
+value you wish to measure.
 
-Other measurements: RDF, mean square displacements, time correlation functions.
+
 
 Post-processing
 
-RDF
 
 Virial
 
@@ -1923,6 +2142,8 @@ List of programs written in this chapter:
    suspended in a shear flow (*section*: 3.5).
 * `Andersen.cu`: Lennard-Jones molecular dynamics simulation with an Andersen
    thermostat (*section*: 3.6).
+* `Euler.cu`: Lennard-Jones molecular dynamics integrated with the Euler scheme 
+  (*section*: 3.6).
 * `density.cu`: Density profile of the ideal free gas expansion from sections
    1.1&ndash;1.4 (*section*: 3.7).
 %! codeblockend
