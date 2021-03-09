@@ -77,7 +77,6 @@ double getThermalEnergy(std::shared_ptr<ParticleData> particles){
   return real(2.0/(3.0*N))*kineticEnergy;
 }//!
 
-
 __global__ void EulerStep(int N, real dt,
                           real4 * position,
                           real3 * velocity,
@@ -92,7 +91,7 @@ __global__ void EulerStep(int N, real dt,
                             force[i].z*dt/mass[i]);
 
   return;
-}
+} //!
 
 __global__ void kineticEnergy(int N,
                               real3 * velocity,
@@ -104,7 +103,7 @@ __global__ void kineticEnergy(int N,
   energy[i] += real(0.5)*mass[i]*dot(velocity[i], velocity[i]);
 
   return;
-}
+} //!
 
 class Euler : public Integrator {
   real dt;
@@ -120,8 +119,7 @@ class Euler : public Integrator {
           Integrator(particles,
                      std::make_shared<ParticleGroup>(particles, sys, "ALL"),
                      sys, "Euler"),
-          dt(params.dt){}
-
+          dt(params.dt){} //!
     virtual void forwardTime() override{
       auto particles = pd;
 
@@ -132,12 +130,10 @@ class Euler : public Integrator {
 
         std::fill(force.begin(), force.end(),
                   make_real4(0.0, 0.0, 0.0, 0.0));
-      }
-
+      } //!
       for(auto interaction: interactors) {
         interaction->sumForce(0);
-      }
-
+      } //!
       auto position
         = particles->getPos(access::location::gpu,
                             access::mode::readwrite);
@@ -164,8 +160,7 @@ class Euler : public Integrator {
                                           velocity.raw(),
                                           mass.raw(),
                                           force.raw());
-    }
-
+    } //!
     virtual real sumEnergy() override{
       auto particles = pd;
 
@@ -198,7 +193,7 @@ int main(int argc, char *argv[]){
 
   auto sys = make_shared<System>(argc, argv);
 
-  int numberOfParticles = 10000;
+  int numberOfParticles = 100000;
   auto particles
     = make_shared<ParticleData>(numberOfParticles, sys);//!
 
@@ -208,7 +203,7 @@ int main(int argc, char *argv[]){
   bool periodicityX = true, periodicityY = true,
        periodicityZ = true;
   box.setPeriodicity(periodicityX, periodicityY,
-                     periodicityZ);
+                     periodicityZ); //!
   {
     auto position
       = particles->getPos(access::location::cpu,
@@ -218,7 +213,7 @@ int main(int argc, char *argv[]){
                                 numberOfParticles, sc);
 
     std::copy(initial.begin(), initial.end(), position.begin());
-  }
+  } //!
 
   {
     auto velocity
@@ -238,13 +233,13 @@ int main(int argc, char *argv[]){
                            access::mode::write);
 
     std::fill(mass.begin(), mass.end(), real(1.0));
-  }
+  } //!
 
-  Euler::Parameters EulerParams;
-  EulerParams.dt = 0.001;
+  Euler::Parameters simParams;
+  simParams.dt = 0.001;
 
   auto integrator
-    = make_shared<Euler>(particles, sys, EulerParams);
+    = make_shared<Euler>(particles, sys, simParams); //!
 
   auto LJPotential = make_shared<Potential::LJ>(sys);
   {
@@ -254,7 +249,7 @@ int main(int argc, char *argv[]){
     LJParams.cutOff = 2.5*LJParams.sigma;
     LJParams.shift = true;
     LJPotential->setPotParameters(0, 0, LJParams);
-  }
+  } //!
 
   {
     using LJForces = PairForces<Potential::LJ>;
@@ -267,13 +262,14 @@ int main(int argc, char *argv[]){
                               LJPotential);
 
     integrator->addInteractor(interaction);
-  }
+  } //!
 
   std::string outputFile = "Lennard-Jones.dat";
   std::ofstream out(outputFile);
-  std::ofstream macro("LJmacro.dat");
+  std::string macroFile = "LJmacro.dat";
+  std::ofstream macro(macroFile);
 
-  int numberOfSteps = 100000;
+  int numberOfSteps = 1000;
   int printEverynSteps = 100;
 
   for(int step = 0; step < numberOfSteps; ++step) {
@@ -281,6 +277,7 @@ int main(int argc, char *argv[]){
 
     if(printEverynSteps > 0
        and step % printEverynSteps == 1) {
+
       auto position
         = particles->getPos(access::location::cpu,
                             access::mode::read);
@@ -288,9 +285,9 @@ int main(int argc, char *argv[]){
 
       out<<endl;
       for(int id = 0; id < numberOfParticles; ++id)
-        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl; //!
 
-      macro<<step*EulerParams.dt<<" ";
+      macro<<step*simParams.dt<<" ";
       macro<<getTotalEnergy(integrator, particles)<<" ";
       macro<<getTotalMomentum(particles)<<" ";
       macro<<getThermalEnergy(particles)<<endl;
@@ -300,4 +297,4 @@ int main(int argc, char *argv[]){
   sys->finish();
 
   return 0;
-}
+} //!

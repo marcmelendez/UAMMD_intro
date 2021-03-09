@@ -1923,7 +1923,7 @@ Similarly, the final \texttt{sumEnergy} function in the Euler
                                               energy.raw());
       return 0;
     }
-};
+}; //!
 %! codeblockend !//
 \end{lstlisting}
 
@@ -1938,6 +1938,42 @@ of the system. You should see an unreasonable drift in the energy for the Euler
 scheme which explains why researchers generally prefer Verlet's method.
 
 \begin{comment}
+How to instantiate the Euler integrator:
+\begin{lstlisting}
+%! codeblock: EulerIntegrator
+  Euler::Parameters simParams;
+  simParams.dt = 0.001;
+
+  auto integrator
+    = make_shared<Euler>(particles, sys, simParams); //!
+%! codeblockend !//
+\end{lstlisting}
+
+Euler does not implement initalising velocities, hence the following block.
+\begin{lstlisting}
+%! codeblock: EulerInitialConditions
+  {
+    auto velocity
+      = particles->getVel(access::location::cpu,
+                          access::mode::write);
+
+    for(int i = 0; i < numberOfParticles; ++i) {
+      velocity[i] = make_real3(sys->rng().gaussian(0,1),
+                               sys->rng().gaussian(0,1),
+                               sys->rng().gaussian(0,1));
+    }
+  }
+
+  {
+    auto mass
+      = particles->getMass(access::location::cpu,
+                           access::mode::write);
+
+    std::fill(mass.begin(), mass.end(), real(1.0));
+  } //!
+%! codeblockend !//
+\end{lstlisting}
+
 One way to integrate the Euler scheme into a UAMMD module follows.
 \begin{lstlisting}
 %! codefile: code/Euler.cu
@@ -1952,29 +1988,47 @@ using namespace uammd;
 using std::make_shared;
 using std::endl;
 
+%! codeinsert: getTotalEnergy
+
+%! codeinsert: getTotalMomentum
+
+%! codeinsert: getThermalEnergy
+
+%! codeinsert: EulerStep
+
+%! codeinsert: kineticEnergy
+
+%! codeinsert: Euler
+
 int main(int argc, char *argv[]){
 
   auto sys = make_shared<System>(argc, argv);
 
-  %! codeinsert: particleData
+  %! codeinsert: particleData src: chapters/first_simulation.tex
 
-  %! codeinsert: latticeInitialConditions
+  %! codeinsert: latticeInitialConditions src: chapters/first_simulation.tex
 
-  %! codeinsert: VerletParams
+  %! codeinsert: EulerInitialConditions
 
-  %! codeinsert: Verlet
+  %! codeinsert: EulerIntegrator
 
-  %! codeinsert: Lennard-JonesPotential
+  %! codeinsert: Lennard-JonesPotential src: chapters/first_simulation.tex
 
-  %! codeinsert: Lennard-JonesInteraction
+  %! codeinsert: Lennard-JonesInteraction src: chapters/first_simulation.tex
 
   std::string outputFile = "Lennard-Jones.dat";
   std::ofstream out(outputFile);
+  std::string macroFile = "LJmacro.dat";
+  std::ofstream macro(macroFile);
 
   int numberOfSteps = 1000;
   int printEverynSteps = 100;
 
-  %! codeinsert: integration
+  for(int step = 0; step < numberOfSteps; ++step) {
+    integrator->forwardTime();
+
+    %! codeinsert: Lennard-JonesOutputData
+  }
 
   sys->finish();
 
