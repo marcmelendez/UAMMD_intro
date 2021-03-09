@@ -2167,15 +2167,24 @@ radial distribution function, as in Figure \ref{Lennard-Jones.rdf}, or, if you
 wished to study the dynamics of molecules, their mean square displacement or the 
 time correlations of their velocities. Once you have learned how to access the 
 microscopic configuration, you can easily write functions that spit out the 
-value you wish to measure.
+value you wish to measure. Most of these functions contain nothing peculiar to 
+UAMMD, so you could write them as external programs that process the data files 
+output by UAMMD.
 
+Compare the \texttt{density} function to \texttt{getTotalEnergy}. We could 
+include the former in an external program that reads a file containing output 
+configurations. The algorithm would not depend on any UAMMD code. By contrast, 
+an external program calculating the total energy would need to know all the 
+velocities and also possess a copy of the \texttt{Interactor} code for the 
+energies. If you decided to modify the \texttt{Interactor} in the UAMMD module, 
+then you would have to apply the same change to the external program. I hope you 
+realise, therefore, that calculating the energy within your module will 
+generally be more convenient, while you can save other measurements like the 
+density or radial distribution function for post-processing.
 
+%Virial
 
-Post-processing
-
-
-Virial
-
+% Lead out: The subtle difficulties created by long-range interactions.
 
 \begin{comment}
 List of programs written in this chapter:
