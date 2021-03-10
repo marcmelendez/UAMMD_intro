@@ -3,8 +3,8 @@ set output "gravity.eps"
 set palette defined (0 "grey", 5 "black")
 
 set size ratio .667
-set xlabel "{/:Italic x} [a.u.]"
-set ylabel "{/:Italic y} [a.u.]"
+set xlabel "{/:Italic x} [au]"
+set ylabel "{/:Italic y} [au]"
 unset colorbox
 
 set label 1 "Pluto" at 27,-15 front

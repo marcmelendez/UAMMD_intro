@@ -2,8 +2,8 @@ set term postscript eps enhanced color font "Roman" size 5cm,4cm
 set output "Jupiter.eps"
 
 set size square
-set xlabel "{/:Italic x} [a.u.]"
-set ylabel "{/:Italic y} [a.u.]"
+set xlabel "{/:Italic x} [au]"
+set ylabel "{/:Italic y} [au]"
 set ytics -3.4,0.1,-3.1
 set xtics 3.6,0.1,4
 unset colorbox
