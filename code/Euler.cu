@@ -132,7 +132,7 @@ class Euler : public Integrator {
                   make_real4(0.0, 0.0, 0.0, 0.0));
       } //!
       for(auto interaction: interactors) {
-        interaction->sumForce(0);
+        interaction->sumForce();
       } //!
       auto position
         = particles->getPos(access::location::gpu,
@@ -187,7 +187,7 @@ class Euler : public Integrator {
                                               energy.raw());
       return 0;
     }
-};
+}; //!
 
 int main(int argc, char *argv[]){
 

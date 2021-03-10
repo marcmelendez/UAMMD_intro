@@ -53,11 +53,11 @@ The comment ``//!`` marks the ends of code snippets in the text.
    thermostat (*section*: 3.4).
 * `Brownian_dynamics.cu:`: Brownian dynamics simulation with Lennard-Jones
    interactions (*section*: 3.5).
-* `shear.cu:`: Brownian dynamics simulation with Lennard-Jones particles 
+* `shear.cu:`: Brownian dynamics simulation with Lennard-Jones particles
    suspended in a shear flow (*section*: 3.5).
 * `Andersen.cu`: Lennard-Jones molecular dynamics simulation with an Andersen
    thermostat (*section*: 3.6).
-* `Euler.cu`: Lennard-Jones molecular dynamics integrated with the Euler scheme 
+* `Euler.cu`: Lennard-Jones molecular dynamics integrated with the Euler scheme
   (*section*: 3.6).
 * `density.cu`: Density profile of the ideal free gas expansion from sections
    1.1&ndash;1.4 (*section*: 3.7).
