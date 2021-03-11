@@ -1,8 +1,8 @@
 set term postscript eps enhanced color font "Roman" size 10cm,4cm
 set output "density.eps"
 
-set xlabel "Height {/:Italic z}"
-set ylabel "Density"
+set xlabel "Height {/:Italic z} [{/Symbol s}]"
+set ylabel "Density [{/Symbol s}^{-3}]"
 set ytics 0,1e-7,5e-7
 unset colorbox
 
