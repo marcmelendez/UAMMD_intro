@@ -22,8 +22,10 @@ struct gravity {
     real * mass;
     real G;
 
-    ForceEnergy(real4 * i_force, real * i_energy, real * i_mass, real i_G):
-                force(i_force), energy(i_energy), mass(i_mass), G(i_G){}
+    ForceEnergy(real4 * i_force, real * i_energy,
+                real * i_mass, real i_G):
+                force(i_force), energy(i_energy),
+                mass(i_mass), G(i_G){}
 
     __device__ real getInfo(int index) {
       return mass[index];
@@ -55,7 +57,7 @@ struct gravity {
                              access::mode::read).raw();
     return ForceEnergy(force, energy, mass, G);
   }
-};
+};//!
 
 int main(int argc, char *argv[]){
 
@@ -93,7 +95,7 @@ int main(int argc, char *argv[]){
       position[i].w = real(0.0);
       sys->log<System::MESSAGE>(objectName);
     }
-  }
+  }//!
 
   using Verlet = VerletNVE;
   Verlet::Parameters VerletParams;
@@ -104,7 +106,6 @@ int main(int argc, char *argv[]){
     = make_shared<Verlet>(particles, sys, VerletParams);
 
   real G = 8.888e-10;
-
   auto GPotential = make_shared<gravity>(G);
   {
     using GForces = PairForces<gravity>;
@@ -114,7 +115,7 @@ int main(int argc, char *argv[]){
                              GPotential);
 
     integrator->addInteractor(interaction);
-  }
+  }//!
 
   std::string outputFile = "gravity.dat";
   std::ofstream out(outputFile);
@@ -141,4 +142,4 @@ int main(int argc, char *argv[]){
   sys->finish();
 
   return 0;
-}
+}//!

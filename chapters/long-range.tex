@@ -5,19 +5,208 @@ Long-range interactions fall off much more slowly. The Earth feels the tug of
 the sun bending its trajectory from many millions of miles away. In the latter 
 case, we cannot define a cut-off radius for interactions. In classical physics, 
 the Earth will feel the attraction of other heavenly bodies no matter the 
-distance, as huge masses compensate for greater separations.
+distance. You cannot safely neglect their effect, as huge masses compensate for 
+greater separations.
 
 \section{Gravity}
 
 You probably know that Newtonian gravitational forces obey an inverse-square
-law, with the force of object $i$ on object $j$ given by
+law, with the force of object $j$ on object $i$ given by
 \begin{equation*}
-  F(\mathrm{r}_{ij}) = -G \frac{m_i m_j}{r_{ij}^2}\
-                          \frac{\mathbf{r}_{ij}}{r_{ij}},
+  F(\mathrm{r}_{ij}) = G \frac{m_i m_j}{r_{ij}^2}\
+                         \frac{\mathbf{r}_{ij}}{r_{ij}},
 \end{equation*}
 with $\mathbf{r}_{ij}$ standing for the vector going from $i$ to $j$, $m_i$ and
 $m_j$ the masses, $r_{ij}$ the distance from $i$ to $j$, and $G$ the universal
 gravitational constant.
+
+A gravitational interaction would follow the same structure as the custom Morse 
+potential that we wrote in section \ref{Custom_pair_potentials}, with a few 
+differences. Apart from the obvious change in the functional form of the force 
+and energy, the cut-off radius becomes infinite and the calculation of the 
+forces and energies requires knowledge of the masses involved, so we have to 
+include a \texttt{getInfo} function that provides them. The constructor will 
+only receive the value of one parameter: the universal gravitational constant 
+$G$. By now, you should find the whole following code block straightforward.
+\begin{lstlisting}
+%! codeblock: gravity
+struct gravity {
+  real G;
+
+  gravity(real i_G) : G(i_G) {}
+
+  real getCutOff() { return std::numeric_limits<real>::infinity(); }
+
+  struct ForceEnergy {
+    real4 * force;
+    real * energy;
+    real * mass;
+    real G;
+
+    ForceEnergy(real4 * i_force, real * i_energy,
+                real * i_mass, real i_G):
+                force(i_force), energy(i_energy),
+                mass(i_mass), G(i_G){}
+
+    __device__ real getInfo(int index) {
+      return mass[index];
+    }
+
+    __device__ real4 compute(real4 ri, real4 rj, real mi, real mj){
+      const real3 rij = make_real3(rj)-make_real3(ri);
+      const real r2 = dot(rij, rij);
+      const real r = sqrtf(r2);
+      if(r2 > 0){
+        return make_real4(G*(mi*mj/(r2*r))*rij,
+                          -0.5*G*mi*mj/r);
+      }
+      return real4();
+    }
+
+    __device__ void set(int id, real4 total){
+      force[id] += make_real4(total.x, total.y, total.z, 0);
+      energy[id] += total.w;
+    }
+  };
+
+  ForceEnergy getForceTransverser(Box box, std::shared_ptr<ParticleData> sys){
+    auto force = sys->getForce(access::location::gpu,
+                               access::mode::readwrite).raw();
+    auto energy = sys->getEnergy(access::location::gpu,
+                                 access::mode::readwrite).raw();
+    auto mass = sys->getMass(access::location::gpu,
+                             access::mode::read).raw();
+    return ForceEnergy(force, energy, mass, G);
+  }
+};//!
+%! codeblockend !//
+\end{lstlisting}
+
+For a realistic simulation of something like the solar system, you will have to 
+read in the data from an external file. Let us agree that the file begins with 
+an integer representing the number of objects contained in the file, followed by 
+a row for each object listing the position coordinates, velocity vector, mass 
+and name. Then you could set up the initial conditions with a block of code like 
+this:
+\begin{lstlisting}
+%! codeblock: gravityInitialConditions
+  auto sys = make_shared<System>(argc, argv);
+  int numberOfParticles;
+
+  std::ifstream in("solarSystem.dat");
+  if(!std::ifstream("solarSystem.dat").good()) {
+    sys->log<System::CRITICAL>("File solarSystem.dat not found.");
+  }
+
+  in>>numberOfParticles;
+
+  auto particles
+    = make_shared<ParticleData>(numberOfParticles, sys);
+
+  {
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
+    auto velocity
+      = particles->getVel(access::location::cpu,
+                          access::mode::write);
+    auto mass
+      = particles->getMass(access::location::cpu,
+                           access::mode::write);
+
+    sys->log<System::MESSAGE>("Reading data for astronomical objects:");
+    std::string objectName;
+
+    for(int i = 0; i < numberOfParticles; ++i) {
+      in>>position[i].x>>position[i].y>>position[i].z
+        >>velocity[i].x>>velocity[i].y>>velocity[i].z
+        >>mass[i]>>objectName;
+      position[i].w = real(0.0);
+      sys->log<System::MESSAGE>(objectName);
+    }
+  }//!
+%! codeblockend !//
+\end{lstlisting}
+
+Work out the value of $G$ in your units of choice. For the solar system, I chose 
+astronomical units, days and Earth masses. Then you can activate the interaction 
+with the lines below. Figure \ref{gravity} shows some planetary trajectories 
+resulting from my test simulation.
+\begin{lstlisting}
+%! codeblock: gravityInteractor
+  real G = 8.888e-10;
+  auto GPotential = make_shared<gravity>(G);
+  {
+    using GForces = PairForces<gravity>;
+
+    auto interaction
+      = make_shared<GForces>(particles, sys, GPotential);
+
+    integrator->addInteractor(interaction);
+  }//!
+%! codeblockend !//
+\end{lstlisting}
+
+\begin{comment}
+Integrating the code blocks into the gravity:
+\begin{lstlisting}
+%! codefile: code/gravity.cu
+# include "uammd.cuh"
+# include "utils/InitialConditions.cuh"
+# include "Interactor/Potential/Potential.cuh"
+# include "Interactor/NeighbourList/CellList.cuh"
+# include "Interactor/PairForces.cuh"
+# include "Integrator/VerletNVE.cuh"
+
+using namespace uammd;
+using std::make_shared;
+using std::endl;
+
+%! codeinsert: gravity
+
+int main(int argc, char *argv[]){
+
+  %! codeinsert: gravityInitialConditions
+
+  using Verlet = VerletNVE;
+  Verlet::Parameters VerletParams;
+  VerletParams.dt = 0.01;
+  VerletParams.initVelocities = false;
+
+  auto integrator
+    = make_shared<Verlet>(particles, sys, VerletParams);
+
+  %! codeinsert: gravityInteractor
+
+  std::string outputFile = "gravity.dat";
+  std::ofstream out(outputFile);
+
+  int numberOfSteps = 1000000;
+  int printEverynSteps = 1000;
+
+  for(int step = 0; step < numberOfSteps; ++step) {
+    integrator->forwardTime();
+
+    if(printEverynSteps > 0
+       and step % printEverynSteps == 1) {
+      auto position
+        = particles->getPos(access::location::cpu,
+                            access::mode::read);
+      const int * index = particles->getIdOrderedIndices(access::location::cpu);
+
+      out<<endl;
+      for(int id = 0; id < numberOfParticles; ++id)
+        out<<make_real3(position[index[id]])<<endl;
+    }
+  }
+
+  sys->finish();
+
+  return 0;
+}//!
+%! codeend !//
+\end{lstlisting}
+\end{comment}
 
 \begin{figure}
   \begin{center}
@@ -25,10 +214,13 @@ gravitational constant.
   \includegraphics[width = 0.44\textwidth]{figures/Jupiter.eps}
   \end{center}
   \caption{\label{gravity}Motion of objects in the solar system for $10^4$ days 
-           starting on the 10th of March 2021, when the code was run. In a 
-           close-up of part of the trajectory for Jupiter (\textit{right}), you 
-           can also see the trajectories of some of its moons 
-           (\textit{source}: NASA JPL HORIZONS system).}
+           starting on the 10\textsuperscript{th} of March 2021, when the code 
+           was run. In a close-up of a segment of the trajectory for Jupiter 
+           (\textit{right}) you can also see the trajectories of some of its 
+           moons (initial configuration data obtained from NASA JPL HORIZONS 
+           system).}
 \end{figure}
 
+\section{Charge distributions}
 
+\section{Hydrodynamics}
