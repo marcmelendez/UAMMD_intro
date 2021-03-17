@@ -178,6 +178,10 @@ PSE
 
 Neighbour lists
 
+Particle groups (e.g. charged particles)
+
+ParameterUpdatable
+
 \end{comment}
 
 \end{document}
@@ -191,7 +195,9 @@ tangle:
 
 weave:
 	latex uammd_intro.tex
-	dvips uammd_intro.dvi
+	dvips -o uammd_intro.tmp.ps uammd_intro.dvi || exit 1
+	sed '/^SDict begin \[$$/ , /^end$$//d' uammd_intro.tmp.ps > uammd_intro.ps
+	rm uammd_intro.tmp.ps
 	ps2pdf uammd_intro.ps
 %! codeend
 
@@ -230,4 +236,8 @@ The comment ``//!`` marks the ends of code snippets in the text.
 ## Measuring
 
   %! codeinsert: codelist src: chapters/measuring.tex
+
+## Long-range interactions
+
+  %! codeinsert: codelist src: chapters/long-range.tex
 %! codeend

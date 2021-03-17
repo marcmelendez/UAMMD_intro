@@ -6,5 +6,7 @@ tangle:
 
 weave:
 	latex uammd_intro.tex
-	dvips uammd_intro.dvi
+	dvips -o uammd_intro.tmp.ps uammd_intro.dvi || exit 1
+	sed '/^SDict begin \[$$/ , /^end$$/d' uammd_intro.tmp.ps > uammd_intro.ps
+	rm uammd_intro.tmp.ps
 	ps2pdf uammd_intro.ps

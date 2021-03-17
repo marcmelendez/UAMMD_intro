@@ -111,8 +111,7 @@ int main(int argc, char *argv[]){
     using GForces = PairForces<gravity>;
 
     auto interaction
-      = make_shared<GForces>(particles, sys,
-                             GPotential);
+      = make_shared<GForces>(particles, sys, GPotential);
 
     integrator->addInteractor(interaction);
   }//!

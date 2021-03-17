@@ -2038,7 +2038,7 @@ int main(int argc, char *argv[]){
 \end{lstlisting}
 \end{comment}
 
-\section{Structure, dynamics and pressure}
+\section{Structure and dynamics}
 
 Returning to the issue of measuring, I would like to write a short function to 
 determine the density of a system at different heights of the $z$ coordinate. It 
@@ -2182,9 +2182,46 @@ realise, therefore, that calculating the energy within your module will
 generally be more convenient, while you can save other measurements like the 
 density or radial distribution function for post-processing.
 
-%Virial
+\section{Pressure}
 
-% Lead out: The subtle difficulties created by long-range interactions.
+There are several different ways of gauging the pressure of a simulated system. 
+For swarms of particles interacting through pair potentials in a periodic 
+simulation box, the virial route has probably become the most popular. Let 
+$\mathbf{r}_{ij}$ represent the vector from particle $i$ to particle $j$ and 
+$\mathbf{F}_{ij}$ the force on $i$ due to its interaction with $j$, then you can 
+define the instantaneous pressure as
+\begin{equation*}
+  P = \frac{N}{V} k_B T
+      + \frac{1}{6V} \sum_{i \neq j} \mathbf{r}_{ij} \cdot \mathbf{F}_{ij},
+\end{equation*}
+with $N$ the number of particles, $V$ the simulation box volume, and $k_B T$ the 
+thermal energy. Here we have a good example of a magnitude that we will usually 
+want to calculate as the simulation proceeds, because it depends on the 
+interactions of every pair of particles.
+
+UAMMD does not include default pressure measurements for its forces, but it does 
+provide the infrastructure to build your own. Instead of rewriting Lennard-Jones 
+to illustrate how to add the virial calculation in, let us seize this 
+opportunity to incorporate a brand new potential function to our library.
+
+The Buckingham potential between particles separated by a distance $r$ equals
+\begin{equation*}
+  V(r) = Ae^{-Br} - \frac{C}{r^6}.
+\end{equation*}
+It models the Pauli exclusion principle and Van der Waals interactions slightly 
+more realistically than Lennard-Jones potentials.
+
+
+
+\bigbreak
+
+If you braved the chapters leading up to this point, you already know enough to 
+set up and run many interesting computations. Now, deciding whether your model 
+correctly represents an empirical observation involves a solid understanding of 
+the relevant physics. Some simulations may seem to work fine but then display a 
+completely different behaviour from the actual experiment. As an example of the 
+type of subtle theoretical difficulties that may arise, I have dedicated the 
+next chapter to long-range interactions.
 
 \begin{comment}
 List of programs written in this chapter:

@@ -61,3 +61,7 @@ The comment ``//!`` marks the ends of code snippets in the text.
   (*section*: 3.6).
 * `density.cu`: Density profile of the ideal free gas expansion from sections
    1.1&ndash;1.4 (*section*: 3.7).
+
+## Long-range interactions
+
+* `gravity.cu`: Simulation of astronomical bodies in the solar system.

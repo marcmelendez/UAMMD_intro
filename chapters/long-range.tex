@@ -1,12 +1,12 @@
 A couple of neutral atoms interacting through Lennard-Jones potentials hardly 
 feel each other as soon as they separate farther than three or four times 
-$\sigma$, even if one of them is just the nearest of a huge cluster of atoms. 
-Long-range interactions fall off much more slowly. The Earth feels the tug of 
-the sun bending its trajectory from many millions of miles away. In the latter 
-case, we cannot define a cut-off radius for interactions. In classical physics, 
-the Earth will feel the attraction of other heavenly bodies no matter the 
-distance. You cannot safely neglect their effect, as huge masses compensate for 
-greater separations.
+$\sigma$, even if one of them is just the nearest of a huge cluster. Long-range 
+interactions fall off much more slowly. The Earth feels the tug of the sun 
+bending its trajectory from many millions of miles away. In the latter case, we 
+cannot define a cut-off radius for interactions. In classical physics, the Earth 
+will feel the attraction of other heavenly bodies no matter the distance. You 
+cannot safely neglect their effect, as huge masses compensate for greater 
+separations.
 
 \section{Gravity}
 
@@ -223,4 +223,31 @@ int main(int argc, char *argv[]){
 
 \section{Charge distributions}
 
+The previous section might have given you the impression that the problem with 
+long-range forces arises from having to consider all the pair interactions. In 
+fact, fast multipole methods can speed up the calculations by cleverly grouping 
+particles together, at the cost of a more complex algorithm. But, even with a 
+slower algorithm, our gravity simulator looks much like the Lennard-Jones 
+simulator, only with infinite-range potentials. No big deal.
+
+The real puzzle comes to light when you try to model something like charged 
+atoms in a crystal, for here you would like to impose periodic boundary 
+conditions. That means that a charge feels forces not just due to all the other 
+charges you track, \textit{but also to the infinity of periodic images}.
+
+% algorithms based on Ewald summation.
+
 \section{Hydrodynamics}
+
+% Integrators
+
+\section{Particle-based fluids}
+
+\section{Lattice-Boltzmann}
+
+\begin{comment}
+List of programs written in this chapter:
+%! codeblock: codelist
+* `gravity.cu`: Simulation of astronomical bodies in the solar system.
+%! codeblockend
+\end{comment}
