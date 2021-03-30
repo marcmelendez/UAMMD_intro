@@ -2209,9 +2209,309 @@ The Buckingham potential between particles separated by a distance $r$ equals
   V(r) = Ae^{-Br} - \frac{C}{r^6}.
 \end{equation*}
 It models the Pauli exclusion principle and Van der Waals interactions slightly 
-more realistically than Lennard-Jones potentials.
+more realistically than Lennard-Jones potentials. Apart from setting the 
+parameters in the potential, we will shift the potential upwards to avoid a 
+discontinuity at the cut-off distance \texttt{rc}.
+\begin{lstlisting}
+%! codeblock: BuckinghamPotential
+struct Buckingham {
+  real A, B, C;
+  real rc;
+  real shift;
 
+  Buckingham(real i_A, real i_B, real i_C, real i_rc):
+             A(i_A), B(i_B), C(i_C), rc(i_rc) {
+    real invr2 = real(1.0)/(rc*rc);
+    real invr6 = invr2*invr2*invr2;
+    shift = A*expf(-B*rc) - C*invr6;
+  }
 
+  real getCutOff() { return rc; } //!
+%! codeblockend !//
+\end{lstlisting}
+
+The \texttt{ForceEnergy} structure parallels the one we wrote for the Morse 
+potential in the previous chapter. The force equals
+\begin{equation*}
+  \mathbf{F}(\mathbf{r})
+    = -\nabla V(r)
+    = \left(\frac{BAe^{-Br}}{r} - \frac{6C}{r^8}\right) \mathbf{r}.
+\end{equation*}
+If we want to calculate the force on particle $i$ due to its interaction with 
+particle $j$, then $\mathbf{r}$ above would represent the vector from 
+$\mathbf{r}_j$ to $\mathbf{r}_i$, which points in the direction opposite to 
+$\mathbf{r}_{ij}$. This explains why we have flipped the signs in the 
+expression for the force below.
+\begin{lstlisting}
+%! codeblock: BuckinghamForceEnergy
+  struct ForceEnergy {
+    real4 * force;
+    real * energy;
+    Box box;
+
+    real A, B, C, rc, shift;
+
+    ForceEnergy(Box i_box, real i_rc,
+                real4 * i_force, real * i_energy,
+                real i_A, real i_B, real i_C, real i_shift):
+                box(i_box), rc(i_rc),
+                force(i_force), energy(i_energy),
+                A(i_A), B(i_B), C(i_C), shift(i_shift) {}
+
+    __device__ real4 compute(real4 ri, real4 rj){
+      const real3 rij = box.apply_pbc(make_real3(rj)-make_real3(ri));
+      const real r2 = dot(rij, rij);
+      if(r2 > 0 and r2 < rc*rc) {
+        const real r = sqrtf(r2);
+        const real AexpmBr = A*expf(-B*r);
+        const real invr2 = real(1.0)/r2;
+        const real invr6 = invr2*invr2*invr2;
+        return make_real4((-B*AexpmBr/r + 6*C*invr6*invr2)*rij,
+                          AexpmBr - C*invr6 + shift);
+      }
+      return real4();
+    }
+
+    __device__ void set(int id, real4 total){
+      force[id] += make_real4(total.x, total.y, total.z, 0);
+      energy[id] += real(0.5)*total.w;
+    }
+  }; //!
+%! codeblockend !//
+\end{lstlisting}
+
+Now we will add a new transverser to the potential, to deal with the calculation 
+of the virial. We will need to compute terms of the following form:
+\begin{equation*}
+  \mathbf{F}_{ij} \cdot \mathbf{r}_{ij}
+    = \left(BAe^{-Br}r - \frac{6C}{r^6}\right).
+\end{equation*}
+\begin{lstlisting}
+%! codeblock: BuckinghamVirial
+  struct Virial {
+    real4 * position;
+    real * virial;
+    Box box;
+
+    real A, B, C, rc;
+
+    Virial(Box i_box, real i_rc,
+           real4 * i_position, real * i_virial,
+           real i_A, real i_B, real i_C):
+           box(i_box), rc(i_rc),
+           position(i_position), virial(i_virial),
+           A(i_A), B(i_B), C(i_C){}
+
+    __device__ real compute(real4 ri, real4 rj){
+      const real3 rij = box.apply_pbc(make_real3(rj)-make_real3(ri));
+      const real r2 = dot(rij, rij);
+      if(r2 > 0 and r2 < rc*rc) {
+        const real r = sqrtf(r2);
+        const real AexpmBr = A*expf(-B*r);
+        const real invr2 = real(1.0)/r2;
+        const real invr6 = invr2*invr2*invr2;
+        return B*AexpmBr*r - 6*C*invr6;
+      } else {
+        return real(0.0);
+      }
+    }
+
+    __device__ void set(int id, real total){
+      virial[id] += total;
+    }
+  }; //!
+%! codeblockend !//
+\end{lstlisting}
+
+The potential ends with two \texttt{getTransverser} functions.
+\begin{lstlisting}
+%! codeblock: BuckinghamGetTransversers
+  ForceEnergy getForceEnergyTransverser(Box box, std::shared_ptr<ParticleData> sys){
+    auto force = sys->getForce(access::location::gpu,
+                               access::mode::readwrite).raw();
+    auto energy = sys->getEnergy(access::location::gpu,
+                                 access::mode::readwrite).raw();
+    return ForceEnergy(box, rc, force, energy, A, B, C, shift);
+  }
+
+  Virial getComputeTransverser(Box box, std::shared_ptr<ParticleData> sys) {
+    auto position = sys->getPos(access::location::gpu,
+                                access::mode::read).raw();
+    auto virial = sys->getVirial(access::location::gpu,
+                                 access::mode::readwrite).raw();
+    return Virial(box, rc, position, virial, A, B, C);
+  }
+}; //!
+%! codeblockend !//
+\end{lstlisting}
+As you can see, the virial will be calculated by a generic ``compute'' function. 
+The result for each particle ends up in the virial array stored in 
+\texttt{particleData}. Let us write a simple function to measure the system 
+virial.
+\begin{lstlisting}
+%! codeblock: getTotalVirial
+double getTotalVirial(std::shared_ptr<ParticleData> particles){
+  auto virial
+    = particles->getVirial(access::location::cpu,
+                           access::mode::read);
+
+  double totalVirial = 0.0;
+
+  for(int i = 0; i < particles->getNumParticles(); ++i) {
+    totalVirial += virial[i];
+  }
+
+  return totalVirial;
+}
+%! codeblockend !//
+\end{lstlisting}
+
+%% Careful! Clean virial and run interactor->compute().
+
+%% Helium 4 parameters
+
+%% Output
+
+%% /* 130 K, 16 cm^3/mol, 0.18 GPa */
+
+\begin{comment}
+%! codefile: code/Buckingham.cu
+%! codeinsert: includeGenericMD
+%! codeinsert: includeLennard-Jones
+# include "Integrator/VerletNVE.cuh"
+
+%! codeinsert: namespaceUAMMD
+
+%! codeinsert: BuckinghamPotential
+
+%! codeinsert: BuckinghamForceEnergy
+
+%! codeinsert: BuckinghamVirial
+
+%! codeinsert: BuckinghamGetTransversers
+
+%! codeinsert: getTotalEnergy
+
+%! codeinsert: getTotalMomentum
+
+%! codeinsert: getThermalEnergy
+
+%! codeinsert: getTotalVirial
+
+int main(int argc, char * argv[])
+{
+
+  auto sys = make_shared<System>(argc, argv);
+
+  int numberOfParticles = 10000;
+  auto particles
+    = make_shared<ParticleData>(numberOfParticles, sys);
+
+  real L = 64;
+
+  Box box(make_real3(L, L, L));
+  bool periodicityX = true, periodicityY = true,
+       periodicityZ = true;
+  box.setPeriodicity(periodicityX, periodicityY,
+                     periodicityZ);
+  {
+    auto position
+      = particles->getPos(access::location::cpu,
+                          access::mode::write);
+
+    auto initial =  initLattice(box.boxSize,
+                                numberOfParticles, sc);
+
+    std::copy(initial.begin(), initial.end(), position.begin());
+  }
+
+  {
+    auto mass
+      = particles->getMass(access::location::cpu,
+                           access::mode::write);
+
+    std::fill(mass.begin(), mass.end(), real(1.0));
+  }
+
+  using Verlet = VerletNVE;
+  Verlet::Parameters VerletParams;
+  VerletParams.dt = 0.001;
+  VerletParams.initVelocities = true;
+  VerletParams.energy = 2.0;
+
+  auto integrator
+    = make_shared<Verlet>(particles, sys, VerletParams);
+
+  real A = 37101;
+  real B = 4.4148;
+  real C = 113.09;
+  real rc = 6.0;
+
+  auto BuckinghamPotential = make_shared<Buckingham>(A, B, C, rc);
+
+  using BuckinghamForces = PairForces<Buckingham>;
+  BuckinghamForces::Parameters interactionParams;
+  interactionParams.box = box;
+
+  auto interaction
+    = make_shared<BuckinghamForces>(particles, sys,
+                                      interactionParams,
+                                      BuckinghamPotential);
+
+  integrator->addInteractor(interaction);
+
+  std::string outputFile = "helium.dat";
+  std::ofstream out(outputFile);
+
+  std::string macroFile = "heliumMacro.dat";
+  std::ofstream macro(macroFile);
+
+  int numberOfSteps = 10000;
+  int printEverynSteps = 100;
+
+  for(int step = 0; step < numberOfSteps; ++step) {
+    integrator->forwardTime();
+
+    if(printEverynSteps > 0
+       and step % printEverynSteps == 1) {
+      {
+        auto virial
+          = particles->getVirial(access::location::cpu,
+                                 access::mode::write);
+
+        std::fill(virial.begin(), virial.end(), real(0.0));
+      }
+
+      interaction->compute(0);
+
+      real thermalEnergy = getThermalEnergy(particles);
+      real totalVirial = getTotalVirial(particles);
+      real volume = box.boxSize.x*box.boxSize.y*box.boxSize.z;
+      real pressure = particles->getNumParticles()*thermalEnergy/volume
+                      + totalVirial/(6*volume);
+
+      auto position
+        = particles->getPos(access::location::cpu,
+                            access::mode::read);
+      const int * index = particles->getIdOrderedIndices(access::location::cpu);
+
+      out<<endl;
+      for(int id = 0; id < numberOfParticles; ++id)
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
+
+      macro<<step*VerletParams.dt<<" ";
+      macro<<getTotalEnergy(integrator, particles)<<" ";
+      macro<<getTotalMomentum(particles)<<" ";
+      macro<<thermalEnergy<<" "<<pressure<<endl;
+    }
+  }
+
+  sys->finish();
+
+  return 0;
+} //!
+%! codeend !//
+\end{comment}
 
 \bigbreak
 
@@ -2243,9 +2543,11 @@ List of programs written in this chapter:
 * `Andersen.cu`: Lennard-Jones molecular dynamics simulation with an Andersen
    thermostat (*section*: 3.6).
 * `Euler.cu`: Lennard-Jones molecular dynamics integrated with the Euler scheme
-  (*section*: 3.6).
+   (*section*: 3.6).
 * `density.cu`: Density profile of the ideal free gas expansion from sections
    1.1&ndash;1.4 (*section*: 3.7).
+* `Buckingham.cu`: Helium atoms interacting through the Buckingham potential in 
+   a simulation that measures the pressure (*section*: 3.8).
 %! codeblockend
 \end{comment}
 

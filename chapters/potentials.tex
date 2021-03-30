@@ -1248,7 +1248,7 @@ do with the results.
       if(r2 > 0 and r < rc){
         const real expar = exp(-a*(r - r0));
         const real oneminusexpar = real(1.0) - expar;
-        return make_real4(-2.0*De*a*((expar - 1)*expar/r)*rij,
+        return make_real4(2.0*De*a*(oneminusexpar*expar/r)*rij,
                           De*(oneminusexpar*oneminusexpar - real(1.0)));
       }
       return real4();

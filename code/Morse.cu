@@ -34,7 +34,7 @@ struct Morse {
       if(r2 > 0 and r < rc){
         const real expar = exp(-a*(r - r0));
         const real oneminusexpar = real(1.0) - expar;
-        return make_real4(-2.0*De*a*((expar - 1)*expar/r)*rij,
+        return make_real4(2.0*De*a*(oneminusexpar*expar/r)*rij,
                           De*(oneminusexpar*oneminusexpar - real(1.0)));
       }
       return real4();
@@ -42,7 +42,7 @@ struct Morse {
 
     __device__ void set(int id, real4 total){
       force[id] += make_real4(total.x, total.y, total.z, 0);
-      energy[id] += total.w;
+      energy[id] += real(0.5)*total.w;
     }
   }; //!
   ForceEnergy getForceTransverser(Box box, std::shared_ptr<ParticleData> sys){

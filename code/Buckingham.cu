@@ -1,6 +1,5 @@
-/* 130 K, 16 cm^3/mol, 0.18 GPa */
-
 # include "uammd.cuh"
+# include "utils/InputFile.h"
 # include "utils/InitialConditions.cuh"
 # include "Interactor/Potential/Potential.cuh"
 # include "Interactor/NeighbourList/CellList.cuh"
@@ -23,7 +22,7 @@ struct Buckingham {
     shift = A*expf(-B*rc) - C*invr6;
   }
 
-  real getCutOff() { return rc; }
+  real getCutOff() { return rc; } //!
 
   struct ForceEnergy {
     real4 * force;
@@ -43,12 +42,10 @@ struct Buckingham {
       const real3 rij = box.apply_pbc(make_real3(rj)-make_real3(ri));
       const real r2 = dot(rij, rij);
       if(r2 > 0 and r2 < rc*rc) {
-        const real r = sqrt(r2);
-        const real AexpmBr = A*exp(-B*r);
+        const real r = sqrtf(r2);
+        const real AexpmBr = A*expf(-B*r);
         const real invr2 = real(1.0)/r2;
         const real invr6 = invr2*invr2*invr2;
-//        return make_real4((-12*A*invr6*invr6*invr2 + 6*C*invr6*invr2)*rij,
-//                          A*invr6*invr6 - C*invr6);
         return make_real4((-B*AexpmBr/r + 6*C*invr6*invr2)*rij,
                           AexpmBr - C*invr6 + shift);
       }
@@ -59,7 +56,7 @@ struct Buckingham {
       force[id] += make_real4(total.x, total.y, total.z, 0);
       energy[id] += real(0.5)*total.w;
     }
-  };
+  }; //!
 
   struct Virial {
     real4 * position;
@@ -92,7 +89,7 @@ struct Buckingham {
     __device__ void set(int id, real total){
       virial[id] += total;
     }
-  };
+  }; //!
 
   ForceEnergy getForceEnergyTransverser(Box box, std::shared_ptr<ParticleData> sys){
     auto force = sys->getForce(access::location::gpu,
@@ -109,7 +106,7 @@ struct Buckingham {
                                  access::mode::readwrite).raw();
     return Virial(box, rc, position, virial, A, B, C);
   }
-};
+}; //!
 
 double getTotalEnergy(std::shared_ptr<Integrator> integrator,
                       std::shared_ptr<ParticleData> particles){
@@ -122,34 +119,9 @@ double getTotalEnergy(std::shared_ptr<Integrator> integrator,
 
   double totalEnergy = 0; //!
   integrator->sumEnergy(); //!
-
   for(auto interactor: integrator->getInteractors()){
     interactor->sumEnergy();
   } //!
-
-  {
-    auto energy
-      = particles->getEnergy(access::location::cpu,
-                             access::mode::read);
-    for(int i = 0; i < particles->getNumParticles(); ++i) {
-      totalEnergy += energy[i];
-    }
-  }
-  return totalEnergy;
-} //!
-
-double getKineticEnergy(std::shared_ptr<Integrator> integrator,
-                        std::shared_ptr<ParticleData> particles){
-  {
-    auto energy
-      = particles->getEnergy(access::location::cpu,
-                             access::mode::write);
-    std::fill(energy.begin(), energy.end(), real(0.0));
-  }
-
-  double totalEnergy = 0; //!
-  integrator->sumEnergy(); //!
-
   {
     auto energy
       = particles->getEnergy(access::location::cpu,
@@ -218,7 +190,8 @@ double getTotalVirial(std::shared_ptr<ParticleData> particles){
   return totalVirial;
 }
 
-int main(int argc, char *argv[]){
+int main(int argc, char * argv[])
+{
 
   auto sys = make_shared<System>(argc, argv);
 
@@ -320,7 +293,6 @@ int main(int argc, char *argv[]){
 
       macro<<step*VerletParams.dt<<" ";
       macro<<getTotalEnergy(integrator, particles)<<" ";
-      macro<<getKineticEnergy(integrator, particles)<<" ";
       macro<<getTotalMomentum(particles)<<" ";
       macro<<thermalEnergy<<" "<<pressure<<endl;
     }
@@ -330,3 +302,5 @@ int main(int argc, char *argv[]){
 
   return 0;
 }
+
+

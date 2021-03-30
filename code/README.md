@@ -58,9 +58,11 @@ The comment ``//!`` marks the ends of code snippets in the text.
 * `Andersen.cu`: Lennard-Jones molecular dynamics simulation with an Andersen
    thermostat (*section*: 3.6).
 * `Euler.cu`: Lennard-Jones molecular dynamics integrated with the Euler scheme
-  (*section*: 3.6).
+   (*section*: 3.6).
 * `density.cu`: Density profile of the ideal free gas expansion from sections
    1.1&ndash;1.4 (*section*: 3.7).
+* `Buckingham.cu`: Helium atoms interacting through the Buckingham potential in 
+   a simulation that measures the pressure (*section*: 3.8).
 
 ## Long-range interactions
 

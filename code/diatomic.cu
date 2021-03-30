@@ -136,7 +136,7 @@ struct diatomic {
 
     __device__ void set(int id, real4 total){
       force[id] += make_real4(total.x, total.y, total.z, 0);
-      energy[id] += total.w;
+      energy[id] += real(0.5)*total.w;
     }
   };
 
