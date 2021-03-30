@@ -58,14 +58,14 @@ struct gravity {
       const real r = sqrtf(r2);
       if(r2 > 0){
         return make_real4(G*(mi*mj/(r2*r))*rij,
-                          -0.5*G*mi*mj/r);
+                          -G*mi*mj/r);
       }
       return real4();
     }
 
     __device__ void set(int id, real4 total){
       force[id] += make_real4(total.x, total.y, total.z, 0);
-      energy[id] += total.w;
+      energy[id] += 0.5*total.w;
     }
   };
 

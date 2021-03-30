@@ -1256,11 +1256,17 @@ do with the results.
 
     __device__ void set(int id, real4 total){
       force[id] += make_real4(total.x, total.y, total.z, 0);
-      energy[id] += total.w;
+      energy[id] += real(0.5)*total.w;
     }
   }; //!
 %! codeblockend !//
 \end{lstlisting}
+Note that in \texttt{set} we add only half of the potential energy calculated 
+above to the energy per particle stored in \texttt{particleData}. The 
+interaction energy between particles $i$ and $j$ belongs to the pair, but
+we store it twice, once for $i$ and once for $j$. By saving only half the value 
+per interaction, we get the correct total by adding up the whole energy vector.
+
 UAMMD includes additional functions designed to tweak the behaviour of your 
 transversers, but we won't need them for the time being.
 
@@ -1762,7 +1768,7 @@ The complete diatomic potential data structure follows.
 
     __device__ void set(int id, real4 total){
       force[id] += make_real4(total.x, total.y, total.z, 0);
-      energy[id] += total.w;
+      energy[id] += real(0.5)*total.w;
     }
   };
 
