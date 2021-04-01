@@ -22,7 +22,8 @@ struct Morse { //!
     real r = sqrtf(dot(rij, rij));
     real oneminusexpar
       = real(1.0) - exp(-MorseParams.a*(r - MorseParams.r0));
-    return MorseParams.De*(oneminusexpar*oneminusexpar - real(1.0));
+    real Vij = MorseParams.De*(oneminusexpar*oneminusexpar - real(1.0));
+    return real(0.5)*Vij;
   } //!
   __device__ real3 force(int i, int j, real3 rij,
                                 BondInfo MorseParams) {

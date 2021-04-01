@@ -250,7 +250,7 @@ int main(int argc, char * argv[])
                                       interactionParams,
                                       BuckinghamPotential);
 
-  integrator->addInteractor(interaction);
+  integrator->addInteractor(interaction); //!
 
   std::string outputFile = "helium.dat";
   std::ofstream out(outputFile);
@@ -264,7 +264,7 @@ int main(int argc, char * argv[])
   for(int step = 0; step < numberOfSteps; ++step) {
     integrator->forwardTime();
 
-    if(printEverynSteps > 0
+if(printEverynSteps > 0
        and step % printEverynSteps == 1) {
       {
         auto virial
@@ -295,12 +295,10 @@ int main(int argc, char * argv[])
       macro<<getTotalEnergy(integrator, particles)<<" ";
       macro<<getTotalMomentum(particles)<<" ";
       macro<<thermalEnergy<<" "<<pressure<<endl;
-    }
+    } //!
   }
 
   sys->finish();
 
   return 0;
-}
-
-
+} //!

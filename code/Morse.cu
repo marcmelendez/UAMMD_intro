@@ -45,7 +45,8 @@ struct Morse {
       energy[id] += real(0.5)*total.w;
     }
   }; //!
-  ForceEnergy getForceTransverser(Box box, std::shared_ptr<ParticleData> sys){
+  ForceEnergy getForceEnergyTransverser(Box box,
+                             std::shared_ptr<ParticleData> sys){
     auto force = sys->getForce(access::location::gpu,
                                access::mode::readwrite).raw();
     auto energy = sys->getEnergy(access::location::gpu,

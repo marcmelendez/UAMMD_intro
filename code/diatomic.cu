@@ -140,7 +140,8 @@ struct diatomic {
     }
   };
 
-  ForceEnergy getForceTransverser(Box box, std::shared_ptr<ParticleData> particles){
+  ForceEnergy getForceEnergyTransverser(Box box,
+                   std::shared_ptr<ParticleData> particles){
     auto force
       = particles->getForce(access::location::gpu,
                             access::mode::readwrite).raw();

@@ -138,7 +138,7 @@ double getTotalEnergy(std::shared_ptr<Integrator> integrator,
   %! codeinsert: reduceEnergyVector
 %! codeblockend !//
 \end{lstlisting}
-Next, it sums the kinetic energies to the particle energy vector.
+Next, it stores the kinetic energies in the particle energy vector.
 \begin{lstlisting}
 %! codeblock: getKineticEnergy
   integrator->sumEnergy(); //!
@@ -350,7 +350,7 @@ $\Delta T$, gives you the heat capacity $C$, because
 \begin{equation*}
   C = \lim_{\Delta T \to 0} \frac{Q}{\Delta T}.
 \end{equation*}
-Using your simulation as a model for a substance made of neutral atoms 
+Using your simulation as a model for a substance made up of neutral atoms 
 (typically argon) you can make predictions of its heat capacity and compare them 
 to experimental measurements.
 
@@ -721,7 +721,7 @@ overwrite them.
   } //!
 %! codeblockend !//
 \end{lstlisting}
-Note that the UAMMD ignores the initial energy per particle in the parameter 
+Note that the module ignores the initial energy per particle in the parameter 
 file when it restores the system with checkpoint data.
 
 Finally, after we output our data to files, we can check whether it's time to 
@@ -862,13 +862,13 @@ control the temperature of their experiments with a thermostat.
 
 It will probably please you to learn that computational thermostats exist as 
 well. They involve changing the algorithm with which you calcuate the time 
-evolution. I'll show you how to run Verlet-like thermostated dynamics below. Let 
-me explain the idea first.
+evolution. I'll show you how to run Verlet-like thermostated dynamics below.
 
-As your particles move around and bump into each other, they also interact with 
-an environment not represented explicitly. Picture it as a swarm of tiny point 
-particles flying around. Its effect amounts to a global friction that slows 
-particles down and random kicks that alter their velocity.
+Let me explain the idea first. As your particles move around and bump into each 
+other, they also interact with an environment not represented explicitly. 
+Picture it as a swarm of tiny point particles flying around. Its effect amounts 
+to a global friction that slows particles down and random kicks that alter their 
+velocity.
 
 To build our constant-temperature version of the Lennard-Jones simulations, we 
 change the integrator from \texttt{VerletNVE} to \texttt{VerletNVT}.
@@ -932,7 +932,7 @@ if it begins with a drift.
   \caption{\label{Langevin}Average energy per particle (\textit{left}) and 
            thermal energy (\textit{right}) for a system of $10^5$ particles
            with Lennard-Jones interactions in a $128^3\ \sigma^3$ box with
-           periodic boundary conditions. The grey solid line corresponds to an 
+           periodic boundary conditions. The solid grey line corresponds to an 
            NVE simulation, while the black curves plot the evolution of a 
            thermostatted system with different values of the friction parameter 
            $\gamma$. The latter simulations begin from the NVE state at
@@ -2209,9 +2209,12 @@ The Buckingham potential between particles separated by a distance $r$ equals
   V(r) = Ae^{-Br} - \frac{C}{r^6}.
 \end{equation*}
 It models the Pauli exclusion principle and Van der Waals interactions slightly 
-more realistically than Lennard-Jones potentials. Apart from setting the 
-parameters in the potential, we will shift the potential upwards to avoid a 
-discontinuity at the cut-off distance \texttt{rc}.
+more realistically than Lennard-Jones potentials, at the cost of a more 
+expensive computation.
+
+In the constructor, apart from setting the parameters in the potential, we will 
+shift the potential upwards to avoid a discontinuity at the cut-off distance 
+\texttt{rc}.
 \begin{lstlisting}
 %! codeblock: BuckinghamPotential
 struct Buckingham {
@@ -2366,13 +2369,85 @@ double getTotalVirial(std::shared_ptr<ParticleData> particles){
 %! codeblockend !//
 \end{lstlisting}
 
-%% Careful! Clean virial and run interactor->compute().
+When Ra\'ul P\'erez wrote UAMMD, he did not know in advance how you would like 
+to use his generic compute function, so he could not make many assumptions 
+regarding when it should run or how it should initialise values. He left that up 
+to you.
 
-%% Helium 4 parameters
+In this case, we have to run our function before we calculate the virial. We'll 
+add it into our sampling loop. We'll begin by clearing the virial vector, then 
+we'll calculate the temperature and pressure, and we'll end by print out the 
+results.
+\begin{lstlisting}
+%! codeblock: BuckinghamSampling
+if(printEverynSteps > 0
+       and step % printEverynSteps == 1) {
+      {
+        auto virial
+          = particles->getVirial(access::location::cpu,
+                                 access::mode::write);
 
-%% Output
+        std::fill(virial.begin(), virial.end(), real(0.0));
+      }
 
-%% /* 130 K, 16 cm^3/mol, 0.18 GPa */
+      interaction->compute(0);
+
+      real thermalEnergy = getThermalEnergy(particles);
+      real totalVirial = getTotalVirial(particles);
+      real volume = box.boxSize.x*box.boxSize.y*box.boxSize.z;
+      real pressure = particles->getNumParticles()*thermalEnergy/volume
+                      + totalVirial/(6*volume);
+
+      auto position
+        = particles->getPos(access::location::cpu,
+                            access::mode::read);
+      const int * index = particles->getIdOrderedIndices(access::location::cpu);
+
+      out<<endl;
+      for(int id = 0; id < numberOfParticles; ++id)
+        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
+
+      macro<<step*VerletParams.dt<<" ";
+      macro<<getTotalEnergy(integrator, particles)<<" ";
+      macro<<getTotalMomentum(particles)<<" ";
+      macro<<thermalEnergy<<" "<<pressure<<endl;
+    } //!
+%! codeblockend !//
+\end{lstlisting}
+We usually define interactors within a block of code set apart by brackets. If 
+we did the same here, then the program  would not work because we need the 
+variable \texttt{interactor} to be defined in the sampling loop. Therefore, we 
+need an active instance of the Buckingham interactor in our main function. For 
+example, if we wished to measure the state of \textsuperscript{4}He atoms, we 
+could write something like this:
+\begin{lstlisting}
+%! codeblock: BuckinghamInteractor
+  real A = 37101;
+  real B = 4.4148;
+  real C = 113.09;
+  real rc = 6.0;
+
+  auto BuckinghamPotential = make_shared<Buckingham>(A, B, C, rc);
+
+  using BuckinghamForces = PairForces<Buckingham>;
+  BuckinghamForces::Parameters interactionParams;
+  interactionParams.box = box;
+
+  auto interaction
+    = make_shared<BuckinghamForces>(particles, sys,
+                                      interactionParams,
+                                      BuckinghamPotential);
+
+  integrator->addInteractor(interaction); //!
+%! codeblockend !//
+\end{lstlisting}
+I found the values for the Buckingham potential parameters in the work of 
+Ko\v{c}i \textit{et al.}, \textit{Study of the high-pressure helium phase 
+diagram using molecular dynamics} (J. Phys.: Condens. Matter \textbf{19}, 
+016206, 2007). As a simple check, I ran the code and found that the 
+\textsuperscript{4}He equilibrated at a temperature of about $130\ \mathrm{K}$, 
+a pressure of $0.18\ \mathrm{GPa}$ and a volume of $16\ 
+\mathrm{cm}^3/\mathrm{mol}$, compatible with the work of these authors.
 
 \begin{comment}
 %! codefile: code/Buckingham.cu
@@ -2442,23 +2517,7 @@ int main(int argc, char * argv[])
   auto integrator
     = make_shared<Verlet>(particles, sys, VerletParams);
 
-  real A = 37101;
-  real B = 4.4148;
-  real C = 113.09;
-  real rc = 6.0;
-
-  auto BuckinghamPotential = make_shared<Buckingham>(A, B, C, rc);
-
-  using BuckinghamForces = PairForces<Buckingham>;
-  BuckinghamForces::Parameters interactionParams;
-  interactionParams.box = box;
-
-  auto interaction
-    = make_shared<BuckinghamForces>(particles, sys,
-                                      interactionParams,
-                                      BuckinghamPotential);
-
-  integrator->addInteractor(interaction);
+  %! codeinsert: BuckinghamInteractor
 
   std::string outputFile = "helium.dat";
   std::ofstream out(outputFile);
@@ -2472,38 +2531,7 @@ int main(int argc, char * argv[])
   for(int step = 0; step < numberOfSteps; ++step) {
     integrator->forwardTime();
 
-    if(printEverynSteps > 0
-       and step % printEverynSteps == 1) {
-      {
-        auto virial
-          = particles->getVirial(access::location::cpu,
-                                 access::mode::write);
-
-        std::fill(virial.begin(), virial.end(), real(0.0));
-      }
-
-      interaction->compute(0);
-
-      real thermalEnergy = getThermalEnergy(particles);
-      real totalVirial = getTotalVirial(particles);
-      real volume = box.boxSize.x*box.boxSize.y*box.boxSize.z;
-      real pressure = particles->getNumParticles()*thermalEnergy/volume
-                      + totalVirial/(6*volume);
-
-      auto position
-        = particles->getPos(access::location::cpu,
-                            access::mode::read);
-      const int * index = particles->getIdOrderedIndices(access::location::cpu);
-
-      out<<endl;
-      for(int id = 0; id < numberOfParticles; ++id)
-        out<<box.apply_pbc(make_real3(position[index[id]]))<<endl;
-
-      macro<<step*VerletParams.dt<<" ";
-      macro<<getTotalEnergy(integrator, particles)<<" ";
-      macro<<getTotalMomentum(particles)<<" ";
-      macro<<thermalEnergy<<" "<<pressure<<endl;
-    }
+    %! codeinsert: BuckinghamSampling
   }
 
   sys->finish();
@@ -2516,12 +2544,12 @@ int main(int argc, char * argv[])
 \bigbreak
 
 If you braved the chapters leading up to this point, you already know enough to 
-set up and run many interesting computations. Now, deciding whether your model 
-correctly represents an empirical observation involves a solid understanding of 
-the relevant physics. Some simulations may seem to work fine but then display a 
-completely different behaviour from the actual experiment. As an example of the 
-type of subtle theoretical difficulties that may arise, I have dedicated the 
-next chapter to long-range interactions.
+set up and run many interesting computations of your own. Now, deciding whether 
+your model correctly represents an empirical observation involves a solid 
+understanding of the relevant physics. Some simulations may seem to work fine 
+but then display a completely different behaviour from the actual experiment. As 
+an example of the type of subtle theoretical difficulties that may arise, I have 
+dedicated the next chapter to long-range interactions.
 
 \begin{comment}
 List of programs written in this chapter:
