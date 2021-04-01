@@ -995,7 +995,8 @@ specify in a \texttt{readBond} function.
 %! codeblockend !//
 \end{lstlisting}
 The energy function calculates $V(r)$, according to the aforementioned Morse
-potential.
+potential, but returns only half this value. That means that the particle at
+each side of the bond stores one half of the energy in the bond they share.
 \begin{lstlisting}
 %! codeblock: MorseEnergy
   __device__ real energy(int i, int j, real3 rij,
@@ -1003,7 +1004,8 @@ potential.
     real r = sqrtf(dot(rij, rij));
     real oneminusexpar
       = real(1.0) - exp(-MorseParams.a*(r - MorseParams.r0));
-    return MorseParams.De*(oneminusexpar*oneminusexpar - real(1.0));
+    real Vij = MorseParams.De*(oneminusexpar*oneminusexpar - real(1.0));
+    return real(0.5)*Vij;
   } //!
 %! codeblockend !//
 \end{lstlisting}
@@ -1261,9 +1263,9 @@ do with the results.
   }; //!
 %! codeblockend !//
 \end{lstlisting}
-Note that in \texttt{set} we add only half of the potential energy calculated 
-above to the energy per particle stored in \texttt{particleData}. The 
-interaction energy between particles $i$ and $j$ belongs to the pair, but
+Once again, note that in \texttt{set} we add only half of the potential energy
+calculated above to the energy per particle stored in \texttt{particleData}.
+The interaction energy between particles $i$ and $j$ belongs to the pair, but
 we store it twice, once for $i$ and once for $j$. By saving only half the value 
 per interaction, we get the correct total by adding up the whole energy vector.
 
@@ -1282,7 +1284,8 @@ returns the \texttt{ForceEnergy} transverser just defined, setting the values of
 the parameters and the references to the force and energy lists.
 \begin{lstlisting}
 %! codeblock: getTransverser
-  ForceEnergy getForceTransverser(Box box, std::shared_ptr<ParticleData> sys){
+  ForceEnergy getForceEnergyTransverser(Box box,
+                             std::shared_ptr<ParticleData> sys){
     auto force = sys->getForce(access::location::gpu,
                                access::mode::readwrite).raw();
     auto energy = sys->getEnergy(access::location::gpu,
@@ -1642,9 +1645,9 @@ a way that the system conserves the total energy and linear momentum.
 %! codeblockend !//
 \end{lstlisting}
 
-We still have to write the \texttt{ForceEnergy} transverser and the 
-\texttt{getForceTransverser} method. The first of these requires much more 
-information than in the previous section.
+We still have to write the \texttt{ForceEnergy} transverser and its associated
+method. The first of these requires much more information than in the previous
+section.
 \begin{lstlisting}
 %! codeblock: diatomicForceEnergy
   struct ForceEnergy{
@@ -1710,11 +1713,13 @@ right interaction potential.
     } //!
 %! codeblockend !//
 \end{lstlisting}
-The \texttt{diatomic} structure ends with a \texttt{getForceTransverser} method 
-that feeds the necessary information into the \texttt{ForceEnergy} constructor.
+The \texttt{diatomic} structure ends with a \texttt{getForceEnergyTransverser}
+method that feeds the necessary information into the \texttt{ForceEnergy}
+constructor.
 \begin{lstlisting}
 %! codeblock: getForceTransverser
-  ForceEnergy getForceTransverser(Box box, std::shared_ptr<ParticleData> particles){
+  ForceEnergy getForceEnergyTransverser(Box box,
+                   std::shared_ptr<ParticleData> particles){
     auto force
       = particles->getForce(access::location::gpu,
                             access::mode::readwrite).raw();
