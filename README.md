@@ -15,5 +15,6 @@ this book, please skim through the pages and skip ahead until you find an
 interesting section.
 
 I have copied the entire example programs discussed in the main text into the
-**code** folder.
+**code** folder. On a typical Unix/Linux system with LaTeX installed, the book
+compiles to a PDF with the command ``make weave``.
 
