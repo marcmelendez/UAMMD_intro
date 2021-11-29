@@ -999,9 +999,9 @@ potential, but returns only half this value. That means that the particle at
 each side of the bond stores one half of the energy in the bond they share.
 \begin{lstlisting}
 %! codeblock: MorseEnergy
-  __device__ real energy(int i, int j, real3 rij,
+  __device__ real energy(int i, int j, real3 rji,
                                 BondInfo MorseParams) {
-    real r = sqrtf(dot(rij, rij));
+    real r = sqrtf(dot(rji, rji));
     real oneminusexpar
       = real(1.0) - exp(-MorseParams.a*(r - MorseParams.r0));
     real Vij = MorseParams.De*(oneminusexpar*oneminusexpar - real(1.0));
@@ -1009,6 +1009,11 @@ each side of the bond stores one half of the energy in the bond they share.
   } //!
 %! codeblockend !//
 \end{lstlisting}
+The \texttt{rji} variable represents the vector
+$\mathbf{r}_{ji} = \mathbf{r}_i - \mathbf{r}_j$ pointing at particle $i$ (for
+which we wish to calculate the energy) from particle $j$ on the other side of
+the bond.
+
 Finally, we close our \texttt{Morse} data structure with the force, which equals
 the negative gradient of the energy,
 \begin{equation*}
@@ -1019,12 +1024,12 @@ the negative gradient of the energy,
 \end{equation*}
 \begin{lstlisting}
 %! codeblock: MorseForce
-  __device__ real3 force(int i, int j, real3 rij,
+  __device__ real3 force(int i, int j, real3 rji,
                                 BondInfo MorseParams) {
-    real r = sqrtf(dot(rij, rij));
+    real r = sqrtf(dot(rji, rji));
     real expar = exp(-MorseParams.a*(r - MorseParams.r0));
     return real(2.0)*MorseParams.De*MorseParams.a
-                    *((expar - 1)*expar/r)*rij;
+                    *((expar - 1)*expar/r)*rji;
   }
 }; //!
 %! codeblockend !//
@@ -1074,7 +1079,7 @@ problem, I began with the whole chain shifted slightly to the right.
 Of course, this does not prevent particles from overlapping later on in the 
 simulation. If you wished to carry out serious work with Morse bonds, you should 
 handle the $\|\mathbf{r}\| = 0$ case separately. For the energy, for example, 
-after calculating \texttt{real r = sqrtf(dot(rij, rij))} you could deal with
+after calculating \texttt{real r = sqrtf(dot(rji, rji))} you could deal with
 overlap by writing
 \begin{lstlisting}
     if(r == 0) return real(0.0);

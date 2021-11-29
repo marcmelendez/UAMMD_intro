@@ -17,20 +17,20 @@ struct Morse { //!
     in>>MorseParams.De>>MorseParams.a>>MorseParams.r0;
     return MorseParams;
   } //!
-  __device__ real energy(int i, int j, real3 rij,
+  __device__ real energy(int i, int j, real3 rji,
                                 BondInfo MorseParams) {
-    real r = sqrtf(dot(rij, rij));
+    real r = sqrtf(dot(rji, rji));
     real oneminusexpar
       = real(1.0) - exp(-MorseParams.a*(r - MorseParams.r0));
     real Vij = MorseParams.De*(oneminusexpar*oneminusexpar - real(1.0));
     return real(0.5)*Vij;
   } //!
-  __device__ real3 force(int i, int j, real3 rij,
+  __device__ real3 force(int i, int j, real3 rji,
                                 BondInfo MorseParams) {
-    real r = sqrtf(dot(rij, rij));
+    real r = sqrtf(dot(rji, rji));
     real expar = exp(-MorseParams.a*(r - MorseParams.r0));
     return real(2.0)*MorseParams.De*MorseParams.a
-                    *((expar - 1)*expar/r)*rij;
+                    *((expar - 1)*expar/r)*rji;
   }
 }; //!
 
