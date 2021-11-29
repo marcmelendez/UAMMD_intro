@@ -227,7 +227,7 @@ int main(int argc, char *argv[]){
 The previous section might have given you the impression that the problem with 
 long-range forces arises from having to consider all the pair interactions. In 
 fact, fast multipole methods can speed up the calculations by cleverly grouping 
-particles together, at the cost of a more complex algorithm. But, even with a 
+particles together, at the cost of a more complex algorithm. But, with the 
 slower algorithm, our gravity simulator looks much like the Lennard-Jones 
 simulator, only with infinite-range potentials. No big deal.
 
@@ -236,7 +236,55 @@ atoms in a crystal, for here you would like to impose periodic boundary
 conditions. That means that a charge feels forces not just due to all the other 
 charges you track, \textit{but also to the infinity of periodic images}.
 
-% algorithms based on Ewald summation.
+To solve the problem, UAMMD employs the popular trick known as Ewald splitting. 
+Instead of point charges, we use Gaussian distributions centered around the 
+points and calculate the field as a sum of two contributions: one springing from 
+the interaction with nearby atoms, the other a far field created by an infinite 
+periodic distribution of charge. We have no need of concerning ourselves with 
+the mathematical details here, as we will create an \texttt{interactor} much 
+like any other in UAMMD, but you must remember that, if you wish to simulate a 
+periodic distribution of charges, creating a new Coulomb pair potential would 
+\textit{not} give you the right answer.
+
+Before we write some more code, let me introduce you to a version of the 
+Buckingham potential with an extra term tagging along.
+\begin{equation*}
+  V(r_{ij}) = A_{ij}e^{-B_{ij}r_{ij}} - \frac{C_{ij}}{r_{ij}^6}
+                                      - \frac{D_{ij}}{r_{ij}^8}.
+\end{equation*}
+The distance $r_{ij}$ obviously refers to the separation between particles $i$ 
+and $j$, but this time we have also added subindices to the parameters $A$, $B$, 
+$C$ and $D$, because below we will consider two types of particles, sodium (Na) 
+and chlorine (Cl) atoms, and the constants differ depending on the particles 
+involved (as shown in Table \ref{NaCl_parameters}).
+
+\begin{table}
+    \begin{center}
+      \begin{tabular}{| c | c | c | c | c |}
+			\hline
+      Interaction type & A (eV) & B (nm) & C ($10^{-6}$ eV nm$^6$) & D ($10^{-8}$ eV nm$^8$) \\
+      \hline
+      Na--Na           &    487 & 0.4208 &          1.05           &   0.499 \\
+      Na--Cl           &  14514 & 0.4208 &          6.99           &   8.675 \\
+      Cl--Cl           & 405774 & 0.4208 &         72.40           & 145.425 \\
+      \hline
+      \end{tabular}
+    \end{center}
+    \caption{\label{NaCl_parameters}Buckingham potential parameters for the 
+             interactions of Na and Cl atoms (\textit{Source}: Q. Chen 
+             \textit{et al.}, \textit{Molecular dynamics simulation of 
+             thermodynamic properties of NaCl at high pressures and 
+             temperatures}, Journal of Physics and Chemistry of Solids 
+             \textbf{65} 1077--1081, 2004).}
+\end{table}
+
+In addition to this short-ranged potential, the atoms will feel the 
+electrostatic interactions,
+\begin{equation*}
+  V_E(r_{ij}) = \frac{1}{4 \pi \epsilon_0} \frac{Z_i Z_j e^2}{r_{ij}},
+\end{equation*}
+but, as explained before, in a periodic setting.
+
 
 \section{Hydrodynamics}
 
