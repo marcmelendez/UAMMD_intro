@@ -188,7 +188,7 @@ double getTotalVirial(std::shared_ptr<ParticleData> particles){
   }
 
   return totalVirial;
-}
+} //!
 
 int main(int argc, char * argv[])
 {

@@ -1778,9 +1778,7 @@ __global__ void EulerStep(int N, real dt,
   if(i > N) return;
 
   position[i] += make_real4(velocity[i]*dt, real(0.0));
-  velocity[i] += make_real3(force[i].x*dt/mass[i],
-                            force[i].y*dt/mass[i],
-                            force[i].z*dt/mass[i]);
+  velocity[i] += make_real3(force[i]*dt/mass[i]);
 
   return;
 } //!
@@ -1833,7 +1831,6 @@ class Euler : public Integrator {
 To move forward in time, we will calculate the forces on every particle. 
 Therefore, we first clear the force vector.
 \begin{lstlisting}
-%! codeblock: EulerForwardTime
     virtual void forwardTime() override{
       auto particles = pd;
 
@@ -1844,11 +1841,35 @@ Therefore, we first clear the force vector.
 
         std::fill(force.begin(), force.end(),
                   make_real4(0.0, 0.0, 0.0, 0.0));
+      }
+\end{lstlisting}
+You can make the operation quicker if you clear the force on your GPU replacing 
+the \texttt{std::fill} instruction with
+\begin{lstlisting}
+%! codeblock: ThrustClearForce
+        thrust::fill(thrust::cuda::par,
+                     force.begin(), force.end(), real4()); //!
+%! codeblockend !//
+\end{lstlisting}
+\begin{comment}
+So, clearing the force with thrust, the code becomes:
+\begin{lstlisting}
+%! codeblock: EulerForwardTime
+    virtual void forwardTime() override{
+      auto particles = pd;
+
+      {
+        auto force
+          = particles->getForce(access::location::cpu,
+                                access::mode::write);
+
+        %! codeinsert: ThrustClearForce
       } //!
       %! codeinsert: EulerSumForces
       %! codeinsert: callEulerStep
 %! codeblockend !//
 \end{lstlisting}
+\end{comment}
 Next, we use the following loop to run the \texttt{sumForce} method of every 
 interaction added to the integrator.
 \begin{lstlisting}
@@ -2365,7 +2386,7 @@ double getTotalVirial(std::shared_ptr<ParticleData> particles){
   }
 
   return totalVirial;
-}
+} //!
 %! codeblockend !//
 \end{lstlisting}
 

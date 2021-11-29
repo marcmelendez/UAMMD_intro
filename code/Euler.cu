@@ -86,9 +86,7 @@ __global__ void EulerStep(int N, real dt,
   if(i > N) return;
 
   position[i] += make_real4(velocity[i]*dt, real(0.0));
-  velocity[i] += make_real3(force[i].x*dt/mass[i],
-                            force[i].y*dt/mass[i],
-                            force[i].z*dt/mass[i]);
+  velocity[i] += make_real3(force[i]*dt/mass[i]);
 
   return;
 } //!
@@ -128,8 +126,8 @@ class Euler : public Integrator {
           = particles->getForce(access::location::cpu,
                                 access::mode::write);
 
-        std::fill(force.begin(), force.end(),
-                  make_real4(0.0, 0.0, 0.0, 0.0));
+        thrust::fill(thrust::cuda::par,
+                     force.begin(), force.end(), real4()); //!
       } //!
       for(auto interaction: interactors) {
         interaction->sumForce();
